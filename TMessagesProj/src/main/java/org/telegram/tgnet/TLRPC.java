@@ -39449,6 +39449,10 @@ public class TLRPC {
     }
 
     public static abstract class Chat extends TLObject {
+    // Helper methods for compatibility with newer code
+    public boolean isScam() { return scam; }
+    public boolean isFake() { return fake; }
+    public boolean isVerified() { return verified; }
         public long id;
         public String title;
         public int date;
