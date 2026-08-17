@@ -2951,39 +2951,34 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             playMessage(messageObject);
             return;
         }
-        final int messageId = messageObject.getId();
-        final long dialogId = messageObject.getDialogId();
-        // Find the message by ID and dialogId (not reference equality)
+        // Find message by ID in the playlist
         int existingIndex = -1;
         for (int i = 0; i < playlist.size(); i++) {
-            MessageObject mo = playlist.get(i);
-            if (mo.getId() == messageId && mo.getDialogId() == dialogId) {
+            if (playlist.get(i).getId() == messageObject.getId()) {
                 existingIndex = i;
                 break;
             }
         }
-        int insertPosition = currentPlaylistNum + 1;
+        int insertAt = currentPlaylistNum + 1;
         if (existingIndex >= 0) {
-            if (existingIndex == insertPosition) {
-                return;
+            if (existingIndex == insertAt) {
+                return; // Already at next position
             }
             playlist.remove(existingIndex);
             if (existingIndex < currentPlaylistNum) {
-                currentPlaylistNum--;
-                insertPosition = currentPlaylistNum + 1;
+                insertAt--;
             }
-            // After removal, insert at correct position
-            playlist.add(insertPosition, messageObject);
-        } else {
-            if (insertPosition > playlist.size()) {
-                insertPosition = playlist.size();
-            }
-            playlist.add(insertPosition, messageObject);
+        }
+        if (insertAt > playlist.size()) {
+            insertAt = playlist.size();
+        }
+        playlist.add(insertAt, messageObject);
+        if (existingIndex < 0) {
             playlistMap.put(messageObject.getId(), messageObject);
         }
-        // Notify playlist changed
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.musicDidLoad);
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
+        // Notify with the correct account instance
+        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.musicDidLoad);
+        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
     }
 
     private void rebuildShuffledPlaylist() {
