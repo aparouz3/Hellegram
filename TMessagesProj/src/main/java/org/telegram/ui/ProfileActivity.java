@@ -651,6 +651,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int userInfoRow;
     private int channelInfoRow;
     private int usernameRow;
+    private int screenTimeRow; // === SCREEN_TIME_FEATURE === (field)
     private int notificationsDividerRow;
     private int notificationsRow;
     private int bizHoursRow;
@@ -10493,6 +10494,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         locationRow = -1;
         channelInfoRow = -1;
         usernameRow = -1;
+        screenTimeRow = -1; // === SCREEN_TIME_FEATURE === (row index init)
         settingsTimerRow = -1;
         settingsKeyRow = -1;
         notificationsDividerRow = -1;
@@ -10685,6 +10687,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
+                screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (user profile row)
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10843,6 +10846,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (ChatObject.isPublic(currentChat)) {
                     usernameRow = rowCount++;
                 }
+                screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
@@ -13591,6 +13595,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         detailCell.setTextAndValue(text, value, true);
                         detailCell.setContentDescriptionValueFirst(true);
+                    } else if (position == screenTimeRow) {
+                        // === SCREEN_TIME_FEATURE START === (bind screen time value in profile)
+                        long dialogId = getDialogId();
+                        long todayMs = org.telegram.messenger.ScreenTimeTracker.getInstance().getChatTimeToday(dialogId);
+                        String timeStr = org.telegram.messenger.ScreenTimeTracker.formatDuration(todayMs);
+                        detailCell.setTextAndValue(timeStr, "Screen time today", false);
+                        // === SCREEN_TIME_FEATURE END ===
                     }
                     if (containsGift) {
                         Drawable drawable = ContextCompat.getDrawable(detailCell.getContext(), R.drawable.msg_input_gift);
@@ -14282,7 +14293,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == screenTimeRow /* === SCREEN_TIME_FEATURE === */) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;

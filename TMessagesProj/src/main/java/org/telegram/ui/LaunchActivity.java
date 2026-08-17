@@ -6728,6 +6728,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onPause() {
         super.onPause();
         isResumed = false;
+        // === SCREEN_TIME_FEATURE START === (pause "other" tracking when app goes to background)
+        org.telegram.messenger.ScreenTimeTracker.getInstance().onOtherPaused();
+        // === SCREEN_TIME_FEATURE END ===
         pipActivityHandler.onPause();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
         ApplicationLoader.mainInterfacePaused = true;
@@ -6957,6 +6960,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onResume() {
         super.onResume();
         isResumed = true;
+        // === SCREEN_TIME_FEATURE START === (start "other" tracking when app enters foreground)
+        org.telegram.messenger.ScreenTimeTracker.getInstance().onOtherResumed();
+        // === SCREEN_TIME_FEATURE END ===
         pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
             onResumeStaticCallback.run();

@@ -484,6 +484,47 @@ public class ChatActivity extends BaseFragment implements
     private ChatBigEmptyView bigEmptyView;
     private ArrayList<View> actionModeViews = new ArrayList<>();
     public ChatAvatarContainer avatarContainer;
+
+    // === SCREEN_TIME_FEATURE START === (live timer runnable + title updater for action bar)
+    private final Runnable screenTimeTitleRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateScreenTimeTitle();
+            org.telegram.messenger.ScreenTimeTracker.getInstance().checkLimitLive(dialog_id);
+            AndroidUtilities.runOnUIThread(this, 1000);
+        }
+    };
+
+    private void updateScreenTimeTitle() {
+        if (avatarContainer == null || dialog_id == 0) return;
+        org.telegram.messenger.ScreenTimeTracker tracker = org.telegram.messenger.ScreenTimeTracker.getInstance();
+        if (!tracker.isTimerVisible(dialog_id)) return;
+        long liveMs = tracker.getLiveChatTime(dialog_id);
+        String timer = org.telegram.messenger.ScreenTimeTracker.formatDurationShort(liveMs);
+        String baseName;
+        if (currentUser != null) {
+            baseName = AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(UserObject.getUserName(currentUser)));
+        } else if (currentChat != null) {
+            baseName = AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(currentChat.title));
+        } else {
+            return;
+        }
+        String fullText = baseName + "  " + timer;
+        SpannableStringBuilder ssb = new SpannableStringBuilder(fullText);
+        int timerStart = fullText.length() - timer.length();
+        int timerEnd = fullText.length();
+        ssb.setSpan(new android.text.style.RelativeSizeSpan(0.7f), timerStart, timerEnd, 0);
+        ssb.setSpan(new android.text.style.ForegroundColorSpan(
+                Theme.getColor(Theme.key_windowBackgroundWhiteGrayText)), timerStart, timerEnd, 0);
+        ssb.setSpan(new android.text.style.TypefaceSpan("monospace"), timerStart, timerEnd, 0);
+
+        if (currentUser != null) {
+            avatarContainer.setTitle(ssb, currentUser.isScam(), currentUser.isFake(), currentUser.isVerified(), currentUser.premium, currentUser.emoji_status, false);
+        } else if (currentChat != null) {
+            avatarContainer.setTitle(ssb, currentChat.isScam(), currentChat.isFake(), currentChat.isVerified(), false, currentChat.emoji_status, false);
+        }
+    }
+    // === SCREEN_TIME_FEATURE END ===
     private AnimatedTextView selectedMessagesCountTextView;
     private RecyclerListView.OnItemClickListener mentionsOnItemClickListener;
     private SuggestEmojiView suggestEmojiPanel;
@@ -1665,6 +1706,8 @@ public class ChatActivity extends BaseFragment implements
     private final static int charge_fee = 72;
 
     private final static int chat_menu_topic_create = 73;
+
+    private final static int screen_time_toggle = 74; // === SCREEN_TIME_FEATURE === (chat menu item id)
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3936,6 +3979,15 @@ public class ChatActivity extends BaseFragment implements
                     getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of("/help", dialog_id, null, null, null, false, null, null, null, true, 0, 0, null, false));
                 } else if (id == bot_settings) {
                     getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of("/settings", dialog_id, null, null, null, false, null, null, null, true, 0, 0, null, false));
+                } else if (id == screen_time_toggle) {
+                    // === SCREEN_TIME_FEATURE START === (per-chat timer toggle click handler)
+                    boolean nowVisible = org.telegram.messenger.ScreenTimeTracker.getInstance().toggleTimerVisible(dialog_id);
+                    updateScreenTimeTitle();
+                    org.telegram.ui.Components.Bulletin.SimpleLayout layout = new org.telegram.ui.Components.Bulletin.SimpleLayout(getParentActivity(), getResourceProvider());
+                    layout.imageView.setImageResource(org.telegram.messenger.R.drawable.msg_permissions);
+                    layout.textView.setText(nowVisible ? "Screen time timer visible" : "Screen time timer hidden");
+                    org.telegram.ui.Components.Bulletin.make(ChatActivity.this, layout, 2000).show();
+                    // === SCREEN_TIME_FEATURE END ===
                 } else if (id == search) {
                     openSearchWithText(isSupportedTags() ? "" : null);
                 } else if (id == translate) {
@@ -4378,6 +4430,10 @@ public class ChatActivity extends BaseFragment implements
             if (searchItem != null) {
                 headerItem.lazilyAddSubItem(search, R.drawable.msg_search, LocaleController.getString(R.string.Search));
             }
+            // === SCREEN_TIME_FEATURE START === (add per-chat timer toggle to chat menu)
+            headerItem.lazilyAddSubItem(screen_time_toggle, R.drawable.msg_permissions, "Screen Time Timer");
+            headerItem.showSubItem(screen_time_toggle);
+            // === SCREEN_TIME_FEATURE END ===
             if (ChatObject.isBoostSupported(currentChat) && (getUserConfig().isPremium() || ChatObject.isBoosted(chatInfo) || ChatObject.hasAdminRights(currentChat))) {
                 RLottieDrawable drawable = new RLottieDrawable(R.raw.boosts, "" + R.raw.boosts, dp(24), dp(24));
                 headerItem.lazilyAddSubItem(boost_group, drawable, LocaleController.getString(ChatObject.isChannelAndNotMegaGroup(currentChat) ? R.string.BoostingBoostChannelMenu : R.string.BoostingBoostGroupMenu));
@@ -29582,6 +29638,20 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        // === SCREEN_TIME_FEATURE START === (onResume: start tracking + limit listener + title timer)
+        org.telegram.messenger.ScreenTimeTracker tracker = org.telegram.messenger.ScreenTimeTracker.getInstance();
+        tracker.onChatResumed(dialog_id);
+        tracker.setLimitReachedListener((reachedDialogId, limitMs) -> {
+            if (reachedDialogId == dialog_id && getParentActivity() != null) {
+                org.telegram.ui.Components.Bulletin.SimpleLayout layout = new org.telegram.ui.Components.Bulletin.SimpleLayout(getParentActivity(), getResourceProvider());
+                layout.imageView.setImageResource(org.telegram.messenger.R.drawable.msg_permissions);
+                layout.textView.setText("Screen time limit reached for this chat (" + org.telegram.messenger.ScreenTimeTracker.formatDuration(limitMs) + ")");
+                org.telegram.ui.Components.Bulletin.make(this, layout, 5000).show();
+            }
+        });
+        tracker.checkLimitLive(dialog_id);
+        AndroidUtilities.runOnUIThread(screenTimeTitleRunnable, 1000);
+        // === SCREEN_TIME_FEATURE END ===
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
@@ -29794,6 +29864,10 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onPause() {
         super.onPause();
+        // === SCREEN_TIME_FEATURE START === (onPause: stop title timer + flush accumulated time)
+        AndroidUtilities.cancelRunOnUIThread(screenTimeTitleRunnable);
+        org.telegram.messenger.ScreenTimeTracker.getInstance().onChatPaused();
+        // === SCREEN_TIME_FEATURE END ===
         scrolling = false;
         if (scrimPopupWindow != null) {
             scrimPopupWindow.setPauseNotifications(false);
