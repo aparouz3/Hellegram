@@ -2878,6 +2878,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         final ItemOptions o = ItemOptions.makeOptions(container, resourcesProvider, cell, true);
 
         if (isMyList()) {
+            o.add(R.drawable.msg_arrow_forward, getString(R.string.PlayNext), () -> {
+                MediaController.getInstance().addToPlaylistNext(messageObject);
+                o.dismiss();
+                BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                    .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
+                    .show();
+            });
             o.addIf(!noforwards, R.drawable.msg_forward, getString(R.string.Forward), () -> {
                 o.dismiss();
                 forward(messageObject);
@@ -2907,6 +2914,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             final ItemOptions o2 = o.makeSwipeback();
             o2.add(R.drawable.ic_ab_back, getString(R.string.Back), o::closeSwipeback);
             o2.addGap();
+            o2.add(R.drawable.msg_arrow_forward, getString(R.string.PlayNext), () -> {
+                MediaController.getInstance().addToPlaylistNext(messageObject);
+                o.dismiss();
+                BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                    .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
+                    .show();
+            });
             o2.addIf(!musicIds.ids.contains(documentId), R.drawable.left_status_profile, getString(R.string.AudioSaveToMyProfile), () -> {
                 saveToProfile(messageObject, true, () -> {
                     setVisibleInProfile(true);

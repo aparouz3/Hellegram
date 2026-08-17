@@ -1156,6 +1156,9 @@
     <string name="RepeatList">Repeat list</string>
     <string name="ShuffleList">Shuffle list</string>
     <string name="ReverseOrder">Reverse order</string>
+    <string name="PlayNext">Play next</string>
+    <string name="PlayNextAdded">Added to play next</string>
+    <string name="PlayNextRemoved">Removed from play next</string>
     <!--documents view-->
     <string name="SelectFile">Select File</string>
     <string name="FreeOfTotal">Free %1$s of %2$s</string>
