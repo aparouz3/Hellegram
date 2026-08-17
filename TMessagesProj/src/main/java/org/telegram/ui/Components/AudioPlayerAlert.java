@@ -2926,16 +2926,25 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             final TLRPC.Document document = messageObject.getDocument();
             final long documentId = document != null ? document.id : 0;
 
-            final ItemOptions o2 = o.makeSwipeback();
-            o2.add(R.drawable.ic_ab_back, getString(R.string.Back), o::closeSwipeback);
-            o2.addGap();
-            o2.add(R.drawable.msg_arrow_forward, getString(R.string.PlayNext), () -> {
+            // Play Next directly in main menu
+            o.add(R.drawable.msg_arrow_forward, getString(R.string.PlayNext), () -> {
                 MediaController.getInstance().addToPlaylistNext(messageObject);
                 o.dismiss();
                 BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
                     .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
                     .show();
             });
+            // Save Voice directly in main menu for voice messages
+            if (messageObject.isVoice() || messageObject.isRoundVideo()) {
+                o.add(R.drawable.msg_download, getString(R.string.SaveVoice), () -> {
+                    saveToMusic(messageObject);
+                    o.dismiss();
+                });
+            }
+
+            final ItemOptions o2 = o.makeSwipeback();
+            o2.add(R.drawable.ic_ab_back, getString(R.string.Back), o::closeSwipeback);
+            o2.addGap();
             o2.addIf(!musicIds.ids.contains(documentId), R.drawable.left_status_profile, getString(R.string.AudioSaveToMyProfile), () -> {
                 saveToProfile(messageObject, true, () -> {
                     setVisibleInProfile(true);
