@@ -2948,33 +2948,42 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
 
     public void addToPlaylistNext(MessageObject messageObject) {
         if (playlist.isEmpty() || currentPlaylistNum < 0 || currentPlaylistNum >= playlist.size()) {
-            // If no playlist or invalid index, just play it
             playMessage(messageObject);
             return;
         }
-
-        // Find if the message is already in playlist
-        int existingIndex = playlist.indexOf(messageObject);
-        if (existingIndex >= 0) {
-            // Move it to next position
-            if (existingIndex != currentPlaylistNum + 1) {
-                playlist.remove(existingIndex);
-                if (existingIndex < currentPlaylistNum) {
-                    currentPlaylistNum--;
-                }
-                playlist.add(currentPlaylistNum + 1, messageObject);
-                rebuildShuffledPlaylist();
+        final int messageId = messageObject.getId();
+        final long dialogId = messageObject.getDialogId();
+        // Find the message by ID and dialogId (not reference equality)
+        int existingIndex = -1;
+        for (int i = 0; i < playlist.size(); i++) {
+            MessageObject mo = playlist.get(i);
+            if (mo.getId() == messageId && mo.getDialogId() == dialogId) {
+                existingIndex = i;
+                break;
             }
-        } else {
-            // Add new message at next position
-            playlist.add(currentPlaylistNum + 1, messageObject);
-            playlistMap.put(messageObject.getId(), messageObject);
-            rebuildShuffledPlaylist();
         }
-
+        int insertPosition = currentPlaylistNum + 1;
+        if (existingIndex >= 0) {
+            if (existingIndex == insertPosition) {
+                return;
+            }
+            playlist.remove(existingIndex);
+            if (existingIndex < currentPlaylistNum) {
+                currentPlaylistNum--;
+                insertPosition = currentPlaylistNum + 1;
+            }
+            // After removal, insert at correct position
+            playlist.add(insertPosition, messageObject);
+        } else {
+            if (insertPosition > playlist.size()) {
+                insertPosition = playlist.size();
+            }
+            playlist.add(insertPosition, messageObject);
+            playlistMap.put(messageObject.getId(), messageObject);
+        }
         // Notify playlist changed
-        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.musicDidLoad);
-        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.musicDidLoad);
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
     }
 
     private void rebuildShuffledPlaylist() {

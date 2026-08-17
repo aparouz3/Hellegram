@@ -2552,7 +2552,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 onReorderTouch = null;
             }
             cell.setBackgroundColor(Theme.getColor(Theme.key_dialogBackground, resourcesProvider));
-            cell.setMessageObject(messageObject, isMyList(), isMyList() || noforwards || messageObject.getId() <= 0 ? null : btn -> showOptions(cell, messageObject), needDivider, onReorderTouch);
+            cell.setMessageObject(messageObject, isMyList(), isMyList() || noforwards ? null : btn -> showOptions(cell, messageObject), needDivider, onReorderTouch);
         }
 
         @Override
@@ -2914,6 +2914,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                         .show();
                 }, false);
             });
+            // Save voice option for voice messages in My List
+            if (messageObject.isVoice() || messageObject.isRoundVideo()) {
+                o.add(R.drawable.msg_download, getString(R.string.SaveVoice), () -> {
+                    saveToMusic(messageObject);
+                    o.dismiss();
+                });
+            }
         } else {
             final MessagesController.SavedMusicIds musicIds = MessagesController.getInstance(currentAccount).getSavedMusicIds();
             final TLRPC.Document document = messageObject.getDocument();
