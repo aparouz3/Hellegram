@@ -1086,6 +1086,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         bottomView.addView(optionsButton, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.TOP));
         optionsButton.addSubItem(1, R.drawable.msg_forward, LocaleController.getString(R.string.Forward));
         optionsButton.addSubItem(2, R.drawable.msg_shareout, LocaleController.getString(R.string.ShareFile));
+        optionsButton.addSubItem(8, R.drawable.msg_arrow_forward, LocaleController.getString(R.string.PlayNext));
         optionsButton.addSubItem(5, R.drawable.msg_download, LocaleController.getString(R.string.SaveToMusic));
         optionsButton.addSubItem(4, R.drawable.msg_message, LocaleController.getString(R.string.ShowInChat));
 
@@ -1735,6 +1736,11 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 }
             }, false);
         } else if (id == 8) {
+            MediaController.getInstance().addToPlaylistNext(messageObject);
+            BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                    .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
+                    .show();
+        } else if (id == 9) {
             new SelectAudioAlert(getContext(), true, null, audio -> {
                 if (audio == null || savedMusicList == null) return;
                 final TLRPC.Document document = audio.getDocument();
@@ -2279,11 +2285,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 optionsButton.hideSubItem(2);
                 optionsButton.hideSubItem(5);
                 optionsButton.hideSubItem(6);
+                optionsButton.hideSubItem(8);
                 optionsButton.setAdditionalYOffset(-dp(16));
             } else {
                 optionsButton.showSubItem(1);
                 optionsButton.showSubItem(2);
                 optionsButton.showSubItem(5);
+                optionsButton.showSubItem(8);
                 optionsButton.setAdditionalYOffset(-dp(157 + 40));
             }
             optionsButton.setSubItemShown(4, messageObject.getId() > 0);
@@ -2942,6 +2950,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 saveToMusic(messageObject);
                 o.dismiss();
             });
+            // Add save voice option for voice messages
+            if (messageObject.isVoice() || messageObject.isRoundVideo()) {
+                o2.add(R.drawable.msg_download, getString(R.string.SaveVoice), () -> {
+                    saveToMusic(messageObject);
+                    o.dismiss();
+                });
+            }
             o2.addGap();
             o2.addText(getString(R.string.AudioSaveToInfo), 12, dp(200));
 

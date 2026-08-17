@@ -1159,6 +1159,7 @@
     <string name="PlayNext">Play next</string>
     <string name="PlayNextAdded">Added to play next</string>
     <string name="PlayNextRemoved">Removed from play next</string>
+    <string name="SaveVoice">Save voice</string>
     <!--documents view-->
     <string name="SelectFile">Select File</string>
     <string name="FreeOfTotal">Free %1$s of %2$s</string>
