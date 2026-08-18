@@ -33547,7 +33547,7 @@ public class ChatActivity extends BaseFragment implements
                             BulletinFactory.of(this).createDownloadBulletin(isMusicFinal ? BulletinFactory.FileType.AUDIOS : BulletinFactory.FileType.UNKNOWNS, count, themeDelegate).show();
                         }
                     });
-                } else if (isMusic || isDocument) {
+                } else if (isMusic || isDocument || selectedObject.isVoice()) {
                     ArrayList<MessageObject> messageObjects;
                     if (selectedObjectGroup != null) {
                         messageObjects = new ArrayList<>(selectedObjectGroup.messages);
@@ -45704,6 +45704,10 @@ public class ChatActivity extends BaseFragment implements
                             }
                         } else if (selectedObject.isMusic() && !noforwardsOrPaidMedia && !selectedObject.isVoiceOnce() && !selectedObject.isRoundOnce()) {
                             items.add(LocaleController.getString(R.string.SaveToMusic));
+                            options.add(OPTION_SAVE_TO_DOWNLOADS_OR_MUSIC);
+                            icons.add(R.drawable.msg_download);
+                        } else if (selectedObject.isVoice() && !noforwardsOrPaidMedia && !selectedObject.isVoiceOnce() && !selectedObject.isRoundOnce()) {
+                            items.add(LocaleController.getString(R.string.SaveVoice));
                             options.add(OPTION_SAVE_TO_DOWNLOADS_OR_MUSIC);
                             icons.add(R.drawable.msg_download);
                         } else if (selectedObject.isDocument() && !noforwardsOrPaidMedia && !selectedObject.isVoiceOnce() && !selectedObject.isRoundOnce()) {

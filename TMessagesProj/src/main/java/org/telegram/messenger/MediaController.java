@@ -2950,6 +2950,11 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (messageObject == null) {
             return;
         }
+        // Fix invalid account number up-front: local/saved voice messages can carry an
+        // out-of-range account, which crashes playMessage() (MessagesController/FileLoader/NotificationCenter)
+        if (messageObject.currentAccount < 0 || messageObject.currentAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            messageObject.currentAccount = UserConfig.selectedAccount;
+        }
         if (playlist.isEmpty() || currentPlaylistNum < 0 || currentPlaylistNum >= playlist.size()) {
             playMessage(messageObject);
             return;
