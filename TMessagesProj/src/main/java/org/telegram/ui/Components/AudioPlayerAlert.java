@@ -2281,7 +2281,8 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         }
         ArrayList<String> names = new ArrayList<>();
         for (MessageObject m : queue) {
-            names.add(m.getMusicTitle() != null ? m.getMusicTitle() : m.getMessageText());
+            String title = m.getMusicTitle() != null ? m.getMusicTitle() : m.getFileName();
+            names.add(title != null ? title : "");
         }
         androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(getContext())
             .setTitle(LocaleController.getString(R.string.PlayNextQueue))
