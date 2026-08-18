@@ -1202,7 +1202,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             }
         });
         listView.setOnItemLongClickListener((view, position) -> {
-            if (view instanceof AudioPlayerCell && !isMyList()) {
+            if (view instanceof AudioPlayerCell) {
                 showOptions((AudioPlayerCell) view, ((AudioPlayerCell) view).getMessageObject());
                 return true;
             }
@@ -2552,7 +2552,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 onReorderTouch = null;
             }
             cell.setBackgroundColor(Theme.getColor(Theme.key_dialogBackground, resourcesProvider));
-            cell.setMessageObject(messageObject, isMyList(), isMyList() || noforwards ? null : btn -> showOptions(cell, messageObject), needDivider, onReorderTouch);
+            cell.setMessageObject(messageObject, isMyList(), noforwards ? null : btn -> showOptions(cell, messageObject), needDivider, onReorderTouch);
         }
 
         @Override

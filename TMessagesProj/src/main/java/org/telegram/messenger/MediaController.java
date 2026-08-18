@@ -2947,6 +2947,9 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     }
 
     public void addToPlaylistNext(MessageObject messageObject) {
+        if (messageObject == null) {
+            return;
+        }
         if (playlist.isEmpty() || currentPlaylistNum < 0 || currentPlaylistNum >= playlist.size()) {
             playMessage(messageObject);
             return;
@@ -2954,7 +2957,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         // Find message by ID in the playlist
         int existingIndex = -1;
         for (int i = 0; i < playlist.size(); i++) {
-            if (playlist.get(i).getId() == messageObject.getId()) {
+            MessageObject item = playlist.get(i);
+            if (item != null && item.getId() == messageObject.getId()) {
                 existingIndex = i;
                 break;
             }
@@ -2976,9 +2980,13 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (existingIndex < 0) {
             playlistMap.put(messageObject.getId(), messageObject);
         }
-        // Notify with the correct account instance
-        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.musicDidLoad);
-        NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
+        // Notify with a valid account instance (voice messages may have invalid account numbers)
+        int notifyAccount = messageObject.currentAccount;
+        if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            notifyAccount = UserConfig.selectedAccount;
+        }
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.musicDidLoad);
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
     }
 
     private void rebuildShuffledPlaylist() {
