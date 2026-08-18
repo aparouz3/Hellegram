@@ -101,6 +101,7 @@ public class NotificationCenter {
     public static final int chatSearchResultsLoading = totalEvents++;
     public static final int musicDidLoad = totalEvents++;
     public static final int moreMusicDidLoad = totalEvents++;
+    public static final int playNextQueueChanged = totalEvents++;
     public static final int needShowAlert = totalEvents++;
     public static final int needShowPlayServicesAlert = totalEvents++;
     public static final int didUpdateMessagesViews = totalEvents++;

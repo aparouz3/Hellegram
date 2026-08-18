@@ -2595,6 +2595,17 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (stopService) {
             CastSync.stop();
         }
+        // Play next queue should not survive a full playback stop
+        if (stopService && !playNextQueue.isEmpty()) {
+            playNextQueue.clear();
+            if (playingMessageObject != null) {
+                int notifyAccount = playingMessageObject.currentAccount;
+                if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+                    notifyAccount = UserConfig.selectedAccount;
+                }
+                NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
+            }
+        }
     }
 
     public boolean isGoingToShowMessageObject(MessageObject messageObject) {
@@ -2946,6 +2957,24 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playMessage(messageObject);
     }
 
+    // Separate queue for "Play Next" items. These are played in order BEFORE the
+    // normal playlist, bypassing shuffle/repeat/reverse strategies. When the queue
+    // is empty, the normal playback strategy takes over again.
+    private final ArrayList<MessageObject> playNextQueue = new ArrayList<>();
+
+    public ArrayList<MessageObject> getPlayNextQueue() {
+        return playNextQueue;
+    }
+
+    public void clearPlayNextQueue() {
+        playNextQueue.clear();
+        int notifyAccount = playingMessageObject != null ? playingMessageObject.currentAccount : UserConfig.selectedAccount;
+        if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            notifyAccount = UserConfig.selectedAccount;
+        }
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
+    }
+
     public void addToPlaylistNext(MessageObject messageObject) {
         if (messageObject == null) {
             return;
@@ -2955,43 +2984,21 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (messageObject.currentAccount < 0 || messageObject.currentAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
             messageObject.currentAccount = UserConfig.selectedAccount;
         }
-        if (playlist.isEmpty() || currentPlaylistNum < 0 || currentPlaylistNum >= playlist.size()) {
-            playMessage(messageObject);
-            return;
-        }
-        // Find message by ID in the playlist
-        int existingIndex = -1;
-        for (int i = 0; i < playlist.size(); i++) {
-            MessageObject item = playlist.get(i);
+        // Remove any existing copy from the queue first (re-adding moves it to the end)
+        for (int i = playNextQueue.size() - 1; i >= 0; i--) {
+            MessageObject item = playNextQueue.get(i);
             if (item != null && item.getId() == messageObject.getId()) {
-                existingIndex = i;
-                break;
+                playNextQueue.remove(i);
             }
         }
-        int insertAt = currentPlaylistNum + 1;
-        if (existingIndex >= 0) {
-            if (existingIndex == insertAt) {
-                return; // Already at next position
-            }
-            playlist.remove(existingIndex);
-            if (existingIndex < currentPlaylistNum) {
-                insertAt--;
-            }
-        }
-        if (insertAt > playlist.size()) {
-            insertAt = playlist.size();
-        }
-        playlist.add(insertAt, messageObject);
-        if (existingIndex < 0) {
-            playlistMap.put(messageObject.getId(), messageObject);
-        }
+        playNextQueue.add(messageObject);
+
         // Notify with a valid account instance (voice messages may have invalid account numbers)
         int notifyAccount = messageObject.currentAccount;
         if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
             notifyAccount = UserConfig.selectedAccount;
         }
-        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.musicDidLoad);
-        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.moreMusicDidLoad, 1);
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
     }
 
     private void rebuildShuffledPlaylist() {
@@ -3001,6 +3008,26 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     }
 
     private void playNextMessageWithoutOrder(boolean byStop) {
+        // Play Next queue takes priority over ALL playback strategies (shuffle/repeat/reverse).
+        // Pop one item and play it; when the queue is empty, normal strategy resumes.
+        if (!playNextQueue.isEmpty()) {
+            MessageObject next = playNextQueue.remove(0);
+            if (next == null) {
+                return;
+            }
+            if (playingMessageObject != null) {
+                playingMessageObject.resetPlayingProgress();
+            }
+            playMusicAgain = true;
+            playMessage(next);
+            int notifyAccount = next.currentAccount;
+            if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+                notifyAccount = UserConfig.selectedAccount;
+            }
+            NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
+            return;
+        }
+
         ArrayList<MessageObject> currentPlayList = SharedConfig.shuffleMusic ? shuffledPlaylist : playlist;
 
         if (byStop && (SharedConfig.repeatMode == 2 || SharedConfig.repeatMode == 1 && currentPlayList.size() == 1) && !forceLoopCurrentPlaylist) {
@@ -3948,7 +3975,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                             NotificationCenter.getInstance(messageObject.currentAccount).postNotificationName(NotificationCenter.messagePlayingProgressDidChanged, messageObject.getId(), 0);
                             final boolean restored = restoreMusicPlaylistState();
                             if (!restored) {
-                                if (!playlist.isEmpty() && (playlist.size() > 1 || !messageObject.isVoice())) {
+                                if (!playlist.isEmpty() && (playlist.size() > 1 || !messageObject.isVoice()) || !playNextQueue.isEmpty()) {
                                     playNextMessageWithoutOrder(true);
                                 } else {
                                     cleanupPlayer(true, hasNoNextVoiceOrRoundVideoMessage(), messageObject.isVoice(), false);

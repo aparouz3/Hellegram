@@ -139,6 +139,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
 
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
+    private TextView playNextQueueBar;
     private ListAdapter listAdapter;
     private LinearLayout emptyView;
     private ImageView emptyImageView;
@@ -1457,6 +1458,18 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         containerView.addView(actionBarShadow, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 3));
         containerView.addView(actionBar);
 
+        // "Play next queue" indicator bar — visible only while the queue is non-empty
+        playNextQueueBar = new TextView(context);
+        playNextQueueBar.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        playNextQueueBar.setGravity(Gravity.CENTER);
+        playNextQueueBar.setPadding(dp(8), 0, dp(8), 0);
+        playNextQueueBar.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
+        playNextQueueBar.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlueText4));
+        playNextQueueBar.setVisibility(View.GONE);
+        playNextQueueBar.setOnClickListener(v -> showPlayNextQueueDialog());
+        containerView.addView(playNextQueueBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 36, Gravity.TOP | Gravity.LEFT, 0, 48, 0, 0));
+        updatePlayNextQueueBar();
+
         blurredView = new FrameLayout(context) {
             @Override
             public boolean onTouchEvent(MotionEvent event) {
@@ -1918,6 +1931,8 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                     layoutManager.scrollToPositionWithOffset(position + addedCount, offset);
                 }
             }
+        } else if (id == NotificationCenter.playNextQueueChanged) {
+            updatePlayNextQueueBar();
         } else if (id == NotificationCenter.fileLoaded) {
             String name = (String) args[0];
             if (name.equals(currentFile)) {
@@ -2244,6 +2259,41 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             seekBarView.setVisibility(View.VISIBLE);
             playButton.setEnabled(true);
         }
+    }
+
+    private void updatePlayNextQueueBar() {
+        if (playNextQueueBar == null) {
+            return;
+        }
+        int count = MediaController.getInstance().getPlayNextQueue().size();
+        if (count > 0) {
+            playNextQueueBar.setText(LocaleController.getString(R.string.PlayNextQueue) + " (" + count + ") — " + LocaleController.getString(R.string.PlayNextQueueClear));
+            playNextQueueBar.setVisibility(View.VISIBLE);
+        } else {
+            playNextQueueBar.setVisibility(View.GONE);
+        }
+    }
+
+    private void showPlayNextQueueDialog() {
+        ArrayList<MessageObject> queue = MediaController.getInstance().getPlayNextQueue();
+        if (queue.isEmpty()) {
+            return;
+        }
+        ArrayList<String> names = new ArrayList<>();
+        for (MessageObject m : queue) {
+            names.add(m.getMusicTitle() != null ? m.getMusicTitle() : m.getMessageText());
+        }
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(getContext())
+            .setTitle(LocaleController.getString(R.string.PlayNextQueue))
+            .setItems(names.toArray(new String[0]), null)
+            .setNegativeButton(LocaleController.getString(R.string.Close), null)
+            .setNeutralButton(LocaleController.getString(R.string.PlayNextQueueClear), (dialog, which) -> {
+                MediaController.getInstance().clearPlayNextQueue();
+                BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                    .createSimpleBulletin(R.raw.ic_delete, getString(R.string.PlayNextQueueCleared))
+                    .show();
+            });
+        builder.show();
     }
 
     private void updateTitle(boolean shutdown) {
@@ -2893,6 +2943,15 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                     .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
                     .show();
             });
+            if (!MediaController.getInstance().getPlayNextQueue().isEmpty()) {
+                o.add(R.drawable.msg_clear, getString(R.string.PlayNextQueueClear), () -> {
+                    MediaController.getInstance().clearPlayNextQueue();
+                    o.dismiss();
+                    BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                        .createSimpleBulletin(R.raw.ic_delete, getString(R.string.PlayNextQueueCleared))
+                        .show();
+                });
+            }
             o.addIf(!noforwards, R.drawable.msg_forward, getString(R.string.Forward), () -> {
                 o.dismiss();
                 forward(messageObject);
@@ -2934,6 +2993,15 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                     .createSimpleBulletin(R.raw.forward, getString(R.string.PlayNextAdded))
                     .show();
             });
+            if (!MediaController.getInstance().getPlayNextQueue().isEmpty()) {
+                o.add(R.drawable.msg_clear, getString(R.string.PlayNextQueueClear), () -> {
+                    MediaController.getInstance().clearPlayNextQueue();
+                    o.dismiss();
+                    BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                        .createSimpleBulletin(R.raw.ic_delete, getString(R.string.PlayNextQueueCleared))
+                        .show();
+                });
+            }
             // Save Voice directly in main menu for voice messages
             if (messageObject.isVoice() || messageObject.isRoundVideo()) {
                 o.add(R.drawable.msg_download, getString(R.string.SaveVoice), () -> {
