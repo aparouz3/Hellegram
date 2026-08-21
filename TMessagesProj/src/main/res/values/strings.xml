@@ -3778,6 +3778,9 @@
     <string name="Call">Call</string>
     <string name="VideoCall">Video Call</string>
     <string name="Copy">Copy</string>
+    <string name="UserId">User ID</string>
+    <string name="ChatId">Chat ID</string>
+    <string name="IdCopied">ID copied to clipboard</string>
     <string name="Restrict">Restrict</string>
     <string name="Ban">Ban</string>
     <string name="Rename">Rename</string>

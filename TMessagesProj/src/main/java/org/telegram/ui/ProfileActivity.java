@@ -608,6 +608,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int numberSectionRow;
     private int numberRow;
     public int birthdayRow;
+    private int chatIdRow;
     private int setUsernameRow;
     private int bioRow;
     private int phoneSuggestionSectionRow;
@@ -7374,6 +7375,24 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
             }
             return true;
+        } else if (position == chatIdRow) { // === HELLEGRAM: copy user ID as tg://openmessage link ===
+            if (getParentActivity() == null) {
+                return false;
+            }
+            final long idToCopy = userId != 0 ? userId : (currentChat != null ? currentChat.id : 0);
+            if (idToCopy == 0) {
+                return false;
+            }
+            try {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) ApplicationLoader.applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                String link = "tg://openmessage?user_id=" + idToCopy;
+                android.content.ClipData clip = android.content.ClipData.newPlainText("label", link);
+                clipboard.setPrimaryClip(clip);
+                BulletinFactory.of(this).createCopyBulletin(LocaleController.getString(R.string.IdCopied), resourcesProvider).show();
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            return true;
         } else if (position == noteRow) {
 
         } else if (position == phoneRow || position == numberRow) {
@@ -10428,6 +10447,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         numberSectionRow = -1;
         numberRow = -1;
         birthdayRow = -1;
+        chatIdRow = -1;
         setUsernameRow = -1;
         bioRow = -1;
         channelRow = -1;
@@ -10596,6 +10616,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 numberRow = rowCount++;
                 setUsernameRow = rowCount++;
                 bioRow = rowCount++;
+                chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (my profile) ===
 
                 settingsSectionRow = rowCount++;
 
@@ -10688,6 +10709,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     usernameRow = rowCount++;
                 }
                 screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (user profile row)
+                chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row ===
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10847,6 +10869,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     usernameRow = rowCount++;
                 }
                 screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
+                chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (chat profile) ===
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
@@ -13455,6 +13478,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
                             containsGift = !myProfile && today && !getMessagesController().premiumPurchaseBlocked();
                         }
+                    } else if (position == chatIdRow) { // === HELLEGRAM: user/chat ID row ===
+                        if (userId != 0) {
+                            detailCell.setTextAndValue(String.valueOf(userId), LocaleController.getString(R.string.UserId), false);
+                        } else if (currentChat != null) {
+                            detailCell.setTextAndValue(String.valueOf(currentChat.id), LocaleController.getString(R.string.ChatId), false);
+                        }
                     } else if (position == phoneRow) {
                         String text;
                         TLRPC.User user = getMessagesController().getUser(userId);
@@ -14265,7 +14294,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         position == clearLogsRow || position == switchBackendRow || position == setAvatarRow ||
                         position == addToGroupButtonRow || position == premiumRow || position == premiumGiftingRow ||
                         position == businessRow || position == liteModeRow || position == birthdayRow || position == channelRow ||
-                        position == starsRow || position == tonRow || position == linkedCommunityRow;
+                        position == starsRow || position == tonRow || position == linkedCommunityRow || position == chatIdRow;
             }
             if (holder.itemView instanceof UserCell) {
                 UserCell userCell = (UserCell) holder.itemView;
@@ -14293,7 +14322,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == screenTimeRow /* === SCREEN_TIME_FEATURE === */) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == chatIdRow || position == screenTimeRow /* === SCREEN_TIME_FEATURE === */) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
@@ -15694,6 +15723,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, infoEndRowEmpty, sparseIntArray);
             put(++pointer, phoneRow, sparseIntArray);
             put(++pointer, noteRow, sparseIntArray);
+            put(++pointer, chatIdRow, sparseIntArray);
             put(++pointer, locationRow, sparseIntArray);
             put(++pointer, userInfoRow, sparseIntArray);
             put(++pointer, channelInfoRow, sparseIntArray);

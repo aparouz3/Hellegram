@@ -1452,8 +1452,4 @@ public abstract class BaseFragment {
         return bulletinDelegate;
     }
 
-
-    protected void dumpCanvas() {
-        AndroidUtilities.dumpCanvas(fragmentView);
-    }
 }
