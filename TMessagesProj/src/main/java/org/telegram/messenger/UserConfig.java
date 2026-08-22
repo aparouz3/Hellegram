@@ -63,6 +63,7 @@ public class UserConfig extends BaseController {
     public boolean suggestContacts = true;
     public boolean showCallsTab;
     public boolean hasSecureData;
+    public boolean voiceChangeEnabledForAccount = true; // === VOICE_CHANGER === (per-account master switch)
     public int loginTime;
     public TLRPC.TL_help_termsOfService unacceptedTermsOfService;
     public long autoDownloadConfigLoadTime;
@@ -163,6 +164,7 @@ public class UserConfig extends BaseController {
                     editor.putBoolean("showCallsTab", showCallsTab);
                     editor.putBoolean("suggestContacts", suggestContacts);
                     editor.putBoolean("hasSecureData", hasSecureData);
+                    editor.putBoolean("voiceChangeEnabledForAccount", voiceChangeEnabledForAccount); // === VOICE_CHANGER ===
                     editor.putBoolean("notificationsSettingsLoaded4", notificationsSettingsLoaded);
                     editor.putBoolean("notificationsSignUpSettingsLoaded", notificationsSignUpSettingsLoaded);
                     editor.putLong("autoDownloadConfigLoadTime", autoDownloadConfigLoadTime);
@@ -315,6 +317,7 @@ public class UserConfig extends BaseController {
             showCallsTab = preferences.getBoolean("showCallsTab", false);
             suggestContacts = preferences.getBoolean("suggestContacts", true);
             hasSecureData = preferences.getBoolean("hasSecureData", false);
+            voiceChangeEnabledForAccount = preferences.getBoolean("voiceChangeEnabledForAccount", true); // === VOICE_CHANGER ===
             notificationsSettingsLoaded = preferences.getBoolean("notificationsSettingsLoaded4", false);
             notificationsSignUpSettingsLoaded = preferences.getBoolean("notificationsSignUpSettingsLoaded", false);
             autoDownloadConfigLoadTime = preferences.getLong("autoDownloadConfigLoadTime", 0);

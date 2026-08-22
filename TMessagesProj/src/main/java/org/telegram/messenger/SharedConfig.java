@@ -678,6 +678,14 @@ public class SharedConfig {
 
             loadDebugConfig(preferences);
 
+            // === VOICE_CHANGER START === (load voice changer settings)
+            try {
+                org.telegram.messenger.partisan.voicechange.VoiceChangeSettings.loadSettings();
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            // === VOICE_CHANGER END ===
+
             preferences = ApplicationLoader.applicationContext.getSharedPreferences("Notifications", Activity.MODE_PRIVATE);
             showNotificationsForAllAccounts = preferences.getBoolean("AllAccounts", true);
 

@@ -1107,12 +1107,14 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     private Runnable recordStartRunnable;
     private DispatchQueue recordQueue;
     private DispatchQueue fileEncodingQueue;
+    private org.telegram.messenger.partisan.voicechange.VoiceChanger voiceChanger;
     private Runnable recordRunnable = new Runnable() {
         @Override
         public void run() {
             if (audioRecorder != null) {
                 ByteBuffer buffer;
-                if (!recordBuffers.isEmpty()) {
+                org.telegram.messenger.partisan.voicechange.VoiceChanger voiceChanger = MediaController.this.voiceChanger;
+                if (!recordBuffers.isEmpty() && voiceChanger == null) {
                     buffer = recordBuffers.get(0);
                     recordBuffers.remove(0);
                 } else {
@@ -1121,6 +1123,21 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 }
                 buffer.rewind();
                 int len = audioRecorder.read(buffer, buffer.capacity());
+                if (voiceChanger != null) {
+                    if (len > 0) {
+                        voiceChanger.write(org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.getBytesFromByteBuffer(buffer, len));
+                    }
+                    byte[] changedVoice = voiceChanger.readAll();
+                    if (changedVoice.length == 0 && !voiceChanger.isVoiceChangingFinished()) {
+                        recordQueue.postRunnable(recordRunnable);
+                        return;
+                    }
+                    len = changedVoice.length;
+                    buffer = ByteBuffer.allocateDirect(len);
+                    buffer.order(ByteOrder.nativeOrder());
+                    buffer.put(changedVoice, 0, len);
+                    buffer.rewind();
+                }
                 if (len > 0) {
                     buffer.limit(len);
                     double sum = 0;
@@ -1184,12 +1201,18 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                                 finalBuffer.limit(oldLimit);
                             }
                         }
-                        recordQueue.postRunnable(() -> recordBuffers.add(finalBuffer));
+                        recordQueue.postRunnable(() -> {
+                            if (voiceChanger == null) {
+                                recordBuffers.add(finalBuffer);
+                            }
+                        });
                     });
                     recordQueue.postRunnable(recordRunnable);
                     AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(recordingCurrentAccount).postNotificationName(NotificationCenter.recordProgressChanged, recordingGuid, amplitude));
                 } else {
-                    recordBuffers.add(buffer);
+                    if (voiceChanger == null) {
+                        recordBuffers.add(buffer);
+                    }
                     if (sendAfterDone != 3 && sendAfterDone != 4) {
                         stopRecordingInternal(sendAfterDone, sendAfterDoneNotify, sendAfterDoneScheduleDate, sendAfterDoneOnce, sendAfterDonePayStars);
                     }
@@ -4893,6 +4916,14 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 fileBuffer.rewind();
 
                 audioRecorder.startRecording();
+                // === VOICE_CHANGER START === (create per-chat voice changer if enabled)
+                voiceChanger = org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.createVoiceChangerIfNeeded(
+                        currentAccount,
+                        dialogId,
+                        org.telegram.messenger.partisan.voicechange.VoiceChangeType.VOICE_MESSAGE,
+                        audioRecorder.getSampleRate()
+                );
+                // === VOICE_CHANGER END ===
             } catch (Exception e) {
                 FileLog.e(e);
                 recordingAudio = null;
@@ -5078,6 +5109,13 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             recordQueue.cancelRunnable(recordStartRunnable);
             recordStartRunnable = null;
         }
+        // === VOICE_CHANGER START === (wait for voice change processing to finish before stopping)
+        if (voiceChanger != null && !voiceChanger.isWritingFinished()) {
+            voiceChanger.setFinishedCallback(() -> stopRecording(send, notify, scheduleDate, once, payStars));
+            voiceChanger.notifyWritingFinished();
+            return;
+        }
+        // === VOICE_CHANGER END ===
         recordQueue.postRunnable(() -> {
             if (sendAfterDone == 3) {
                 sendAfterDone = 0;
@@ -5117,6 +5155,29 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(recordingCurrentAccount).postNotificationName(NotificationCenter.recordStopped, recordingGuid, send == 2 ? 1 : 0));
         });
     }
+
+    // === VOICE_CHANGER START === (live toggle while recording)
+    public boolean isVoiceChangingActive() {
+        return voiceChanger != null;
+    }
+
+    public void setVoiceChangingEnabled(boolean enabled) {
+        if (enabled && voiceChanger == null) {
+            if (audioRecorder != null && recordingCurrentAccount != 0) {
+                voiceChanger = org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.createVoiceChangerIfNeeded(
+                        recordingCurrentAccount,
+                        recordDialogId,
+                        org.telegram.messenger.partisan.voicechange.VoiceChangeType.VOICE_MESSAGE,
+                        audioRecorder.getSampleRate()
+                );
+            }
+        } else if (!enabled && voiceChanger != null) {
+            org.telegram.messenger.partisan.voicechange.VoiceChanger oldChanger = voiceChanger;
+            voiceChanger = null;
+            oldChanger.forceStop();
+        }
+    }
+    // === VOICE_CHANGER END ===
 
     private static class MediaLoader implements NotificationCenter.NotificationCenterDelegate {
 

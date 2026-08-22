@@ -1330,6 +1330,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         private final RectF rectF = new RectF();
         public final RectF onceRect = new RectF();
+        public final RectF voiceChangerRect = new RectF(); // === VOICE_CHANGER === (recording toggle button)
 
         private long lastUpdateTime;
 
@@ -1668,6 +1669,36 @@ public class ChatActivityEnterView extends FrameLayout implements
                 periodDrawable.draw(canvas);
                 canvas.restore();
             }
+            // === VOICE_CHANGER START === (voice changer toggle button next to pause)
+            if (sendButtonVisible) {
+                voiceChangerRect.set(
+                    pauseRect.centerX() - dpf2(48) - dpf2(36), pauseRect.top,
+                    pauseRect.centerX() - dpf2(48), pauseRect.bottom
+                );
+                canvas.save();
+                final float s3 = controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress;
+                canvas.scale(s3, s3, voiceChangerRect.centerX(), voiceChangerRect.centerY());
+                if (periodBackgroundDrawable != null) {
+                    periodBackgroundDrawable.setBounds(
+                        (int) (voiceChangerRect.left - dpf2(3)), (int) (voiceChangerRect.top - dpf2(3)),
+                        (int) (voiceChangerRect.right + dpf2(3)), (int) (voiceChangerRect.bottom + dpf2(3))
+                    );
+                    periodBackgroundDrawable.draw(canvas);
+                } else {
+                    lockShadowDrawable.setBounds(
+                            (int) (voiceChangerRect.left - dpf2(3)), (int) (voiceChangerRect.top - dpf2(3)),
+                            (int) (voiceChangerRect.right + dpf2(3)), (int) (voiceChangerRect.bottom + dpf2(3))
+                    );
+                    lockShadowDrawable.draw(canvas);
+                    canvas.drawRoundRect(voiceChangerRect, dpf2(18), dpf2(18), lockBackgroundPaint);
+                }
+                boolean voiceChanging = MediaController.getInstance().isVoiceChangingActive();
+                micDrawable.setColorFilter(new PorterDuffColorFilter(voiceChanging ? getThemedColor(Theme.key_windowBackgroundWhiteBlueText) : getThemedColor(Theme.key_windowBackgroundWhiteGrayText), PorterDuff.Mode.SRC_IN));
+                micDrawable.setBounds((int) voiceChangerRect.left, (int) voiceChangerRect.top, (int) voiceChangerRect.right, (int) voiceChangerRect.bottom);
+                micDrawable.draw(canvas);
+                canvas.restore();
+            }
+            // === VOICE_CHANGER END ===
         }
 
         @Override
@@ -1737,6 +1768,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         private boolean oncePressed;
         private boolean pausePressed;
+        private boolean voiceChangerPressed; // === VOICE_CHANGER ===
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
@@ -1746,12 +1778,22 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 if (sendButtonVisible) {
                     pausePressed = pauseRect.contains(x, y);
+                    voiceChangerPressed = voiceChangerRect.contains(x, y); // === VOICE_CHANGER ===
                 }
                 if (onceVisible && (recordCircle != null && snapAnimationProgress > .1f)) {
                     oncePressed = onceRect.contains(x, y);
                 }
             } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                if (pausePressed && pauseRect.contains(x, y)) {
+                if (voiceChangerPressed && voiceChangerRect.contains(x, y)) {
+                    // === VOICE_CHANGER START === (toggle voice changer for this chat while recording)
+                    voiceChangerPressed = oncePressed = pausePressed = false;
+                    boolean newState = !MediaController.getInstance().isVoiceChangingActive();
+                    org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialog_id, newState);
+                    MediaController.getInstance().setVoiceChangingEnabled(newState);
+                    invalidate();
+                    return true;
+                    // === VOICE_CHANGER END ===
+                } else if (pausePressed && pauseRect.contains(x, y)) {
                     if (isInVideoMode()) {
                         if (slideText != null) {
                             slideText.setEnabled(false);
@@ -13872,19 +13914,23 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         TextPaint grayPaint;
         TextPaint bluePaint;
+        TextPaint voiceChangedPaint; // === VOICE_CHANGER ===
 
         Paint arrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         String slideToCancelString;
         String cancelString;
+        String voiceChangedString; // === VOICE_CHANGER ===
 
         float slideToCancelWidth;
         float cancelWidth;
+        float voiceChangedWidth; // === VOICE_CHANGER ===
         float cancelToProgress;
         float slideProgress;
 
         float slideToAlpha;
         float cancelAlpha;
+        float voiceChangedAlpha; // === VOICE_CHANGER ===
 
         float xOffset = 0;
         boolean moveForward;
@@ -13896,6 +13942,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         StaticLayout slideToLayout;
         StaticLayout cancelLayout;
+        StaticLayout voiceChangedLayout; // === VOICE_CHANGER ===
 
         private boolean pressed;
         public Rect cancelRect = new Rect();
@@ -13976,6 +14023,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             cancelString = getString("Cancel", R.string.Cancel).toUpperCase();
 
+            // === VOICE_CHANGER START ===
+            voiceChangedPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            voiceChangedPaint.setTextSize(dp(11));
+            voiceChangedString = getString(R.string.VoiceChanged);
+            // === VOICE_CHANGER END ===
+
             cancelCharOffset = slideToCancelString.indexOf(cancelString);
 
             updateColors();
@@ -13984,8 +14037,13 @@ public class ChatActivityEnterView extends FrameLayout implements
         public void updateColors() {
             grayPaint.setColor(getThemedColor(Theme.key_chat_recordTime));
             bluePaint.setColor(getThemedColor(Theme.key_chat_recordVoiceCancel));
+            // === VOICE_CHANGER START ===
+            voiceChangedPaint.setColor(getThemedColor(Theme.key_chat_recordTime));
+            voiceChangedPaint.setAlpha((int) (voiceChangedPaint.getAlpha() * 0.8));
+            // === VOICE_CHANGER END ===
             slideToAlpha = grayPaint.getAlpha();
             cancelAlpha = bluePaint.getAlpha();
+            voiceChangedAlpha = voiceChangedPaint.getAlpha(); // === VOICE_CHANGER ===
             selectableBackground = Theme.createSimpleSelectorCircleDrawable(dp(60), 0, ColorUtils.setAlphaComponent(getThemedColor(Theme.key_chat_recordVoiceCancel), 26));
             selectableBackground.setCallback(this);
         }
@@ -14018,6 +14076,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 lastSize = currentSize;
                 slideToCancelWidth = grayPaint.measureText(slideToCancelString);
                 cancelWidth = bluePaint.measureText(cancelString);
+                // === VOICE_CHANGER START ===
+                voiceChangedWidth = voiceChangedPaint.measureText(voiceChangedString);
+                // === VOICE_CHANGER END ===
                 lastUpdateTime = System.currentTimeMillis();
 
                 int heightHalf = getMeasuredHeight() >> 1;
@@ -14034,6 +14095,9 @@ public class ChatActivityEnterView extends FrameLayout implements
 
                 slideToLayout = new StaticLayout(slideToCancelString, grayPaint, (int) slideToCancelWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
                 cancelLayout = new StaticLayout(cancelString, bluePaint, (int) cancelWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+                // === VOICE_CHANGER START ===
+                voiceChangedLayout = new StaticLayout(voiceChangedString, voiceChangedPaint, (int) voiceChangedWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+                // === VOICE_CHANGER END ===
             }
         }
 
@@ -14094,6 +14158,17 @@ public class ChatActivityEnterView extends FrameLayout implements
                 canvas.translate((int) x + slideDelta, (getMeasuredHeight() - slideToLayout.getHeight()) / 2f + offsetY);
                 slideToLayout.draw(canvas);
                 canvas.restore();
+
+                // === VOICE_CHANGER START === (indicate voice changer is active while recording)
+                if (org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.needShowVoiceChangeNotification(currentAccount, org.telegram.messenger.partisan.voicechange.VoiceChangeType.VOICE_MESSAGE) || org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.needShowVoiceChangeNotification(currentAccount, org.telegram.messenger.partisan.voicechange.VoiceChangeType.VIDEO_MESSAGE)) {
+                    voiceChangedPaint.setAlpha((int) (voiceChangedAlpha * (1f - cancelToProgress) * slideProgress));
+                    canvas.save();
+                    canvas.translate((int) x + slideDelta + (slideToCancelWidth - voiceChangedWidth) / 2, (getMeasuredHeight() - slideToLayout.getHeight()) / 2f + offsetY + slideToLayout.getHeight());
+                    voiceChangedLayout.draw(canvas);
+                    canvas.restore();
+                }
+                // === VOICE_CHANGER END ===
+
                 canvas.restore();
             }
 
