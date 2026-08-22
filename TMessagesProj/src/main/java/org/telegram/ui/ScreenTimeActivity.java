@@ -466,6 +466,9 @@ public class ScreenTimeActivity extends BaseFragment {
             nameText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             nameText.setMaxLines(1);
             nameText.setEllipsize(TextUtils.TruncateAt.END);
+            // Force LTR + left alignment so Persian/Arabic chat names stay on the left
+            nameText.setTextDirection(View.TEXT_DIRECTION_LTR);
+            nameText.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
             addView(nameText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 52, 2, 0, 0));
 
             valueText = new TextView(context);
