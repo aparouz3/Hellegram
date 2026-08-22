@@ -46,7 +46,7 @@ public abstract class Setting<T> {
         } else {
             editor.remove(key);
         }
-        editor.commit();
+        editor.apply(); // async write — avoids UI jank during slider drags
     }
 
     protected abstract void putValue(SharedPreferences.Editor editor, T newValue);
