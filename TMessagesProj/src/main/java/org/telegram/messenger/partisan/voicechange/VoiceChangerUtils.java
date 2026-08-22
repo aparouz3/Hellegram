@@ -34,6 +34,13 @@ public class VoiceChangerUtils {
                 .edit().putBoolean("vc_dialog_" + dialogId, enabled).apply();
     }
 
+    /** Generates random voice parameters if none are set, so the toggle actually changes the voice. */
+    public static void ensureParametersSet() {
+        if (!anyParameterSet()) {
+            new VoiceChangeSettingsGenerator().generateParameters(true);
+        }
+    }
+
     public static VoiceChanger createVoiceChangerIfNeeded(int accountNum, long dialogId, VoiceChangeType type, int sampleRate) {
         return genericCreateVoiceChangerIfNeeded(
                 accountNum,

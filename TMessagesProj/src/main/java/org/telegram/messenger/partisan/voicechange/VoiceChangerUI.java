@@ -114,6 +114,9 @@ public class VoiceChangerUI {
         builder.setSubtitle(chatName);
         builder.setView(container);
         builder.setPositiveButton(LocaleController.getString(R.string.Done), (dialogInterface, i) -> {
+            if (perChatSwitch.isChecked()) {
+                VoiceChangerUtils.ensureParametersSet();
+            }
             VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialogId, perChatSwitch.isChecked());
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);

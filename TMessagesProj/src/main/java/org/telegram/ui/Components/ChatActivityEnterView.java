@@ -1788,6 +1788,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                     // === VOICE_CHANGER START === (toggle voice changer for this chat while recording)
                     voiceChangerPressed = oncePressed = pausePressed = false;
                     boolean newState = !MediaController.getInstance().isVoiceChangingActive();
+                    if (newState) {
+                        org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.ensureParametersSet();
+                    }
                     org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialog_id, newState);
                     MediaController.getInstance().setVoiceChangingEnabled(newState);
                     invalidate();
