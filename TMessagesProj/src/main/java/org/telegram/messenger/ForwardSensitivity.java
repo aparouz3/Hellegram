@@ -12,6 +12,7 @@ package org.telegram.messenger;
 import android.app.Activity;
 import android.content.Context;
 
+import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
