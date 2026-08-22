@@ -228,6 +228,13 @@ public class ScreenTimeActivity extends BaseFragment {
             tracker.toggleTimerVisible(dialogId);
             refreshData();
         });
+        // === FORWARD_SENSITIVITY START === (forwarding sensitivity access from per-chat screen time dialog)
+        builder.setNeutralButton("Forwarding sensitivity: " + org.telegram.messenger.ForwardSensitivity.getModeName(dialogId), (d, w) -> {
+            d.dismiss();
+            org.telegram.messenger.ForwardSensitivity.showModePickerDialog(ScreenTimeActivity.this, dialogId);
+            refreshData();
+        });
+        // === FORWARD_SENSITIVITY END ===
 
         builder.create().show();
     }

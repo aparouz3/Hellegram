@@ -1708,6 +1708,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int chat_menu_topic_create = 73;
 
     private final static int screen_time_toggle = 74; // === SCREEN_TIME_FEATURE === (chat menu item id)
+    private final static int forward_sensitivity = 75; // === FORWARD_SENSITIVITY === (chat menu item id)
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3988,6 +3989,10 @@ public class ChatActivity extends BaseFragment implements
                     layout.textView.setText(nowVisible ? "Screen time timer visible" : "Screen time timer hidden");
                     org.telegram.ui.Components.Bulletin.make(ChatActivity.this, layout, 2000).show();
                     // === SCREEN_TIME_FEATURE END ===
+                } else if (id == forward_sensitivity) {
+                    // === FORWARD_SENSITIVITY START === (per-chat forwarding sensitivity click handler)
+                    org.telegram.messenger.ForwardSensitivity.showModePickerDialog(ChatActivity.this, dialog_id);
+                    // === FORWARD_SENSITIVITY END ===
                 } else if (id == search) {
                     openSearchWithText(isSupportedTags() ? "" : null);
                 } else if (id == translate) {
@@ -4432,6 +4437,10 @@ public class ChatActivity extends BaseFragment implements
             headerItem.lazilyAddSubItem(screen_time_toggle, R.drawable.msg_permissions, "Screen Time Timer");
             headerItem.showSubItem(screen_time_toggle);
             // === SCREEN_TIME_FEATURE END ===
+            // === FORWARD_SENSITIVITY START === (add per-chat forwarding sensitivity to chat menu)
+            headerItem.lazilyAddSubItem(forward_sensitivity, R.drawable.msg_forward, "Forwarding Sensitivity");
+            headerItem.showSubItem(forward_sensitivity);
+            // === FORWARD_SENSITIVITY END ===
             if (ChatObject.isBoostSupported(currentChat) && (getUserConfig().isPremium() || ChatObject.isBoosted(chatInfo) || ChatObject.hasAdminRights(currentChat))) {
                 RLottieDrawable drawable = new RLottieDrawable(R.raw.boosts, "" + R.raw.boosts, dp(24), dp(24));
                 headerItem.lazilyAddSubItem(boost_group, drawable, LocaleController.getString(ChatObject.isChannelAndNotMegaGroup(currentChat) ? R.string.BoostingBoostChannelMenu : R.string.BoostingBoostGroupMenu));

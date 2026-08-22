@@ -653,6 +653,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int channelInfoRow;
     private int usernameRow;
     private int screenTimeRow; // === SCREEN_TIME_FEATURE === (field)
+    private int forwardSensitivityRow; // === FORWARD_SENSITIVITY === (field)
     private int notificationsDividerRow;
     private int notificationsRow;
     private int bizHoursRow;
@@ -4300,7 +4301,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 return;
             }
             listView.stopScroll();
-            if (position == affiliateRow) {
+            if (position == forwardSensitivityRow) {
+                // === FORWARD_SENSITIVITY START === (open per-chat forwarding sensitivity picker from profile)
+                org.telegram.messenger.ForwardSensitivity.showModePickerDialog(ProfileActivity.this, getDialogId());
+                updateListAnimated(false);
+                // === FORWARD_SENSITIVITY END ===
+            } else if (position == affiliateRow) {
                 TLRPC.User user = getMessagesController().getUser(userId);
                 if (userInfo != null && userInfo.starref_program != null) {
                     final long selfId = getUserConfig().getClientUserId();
@@ -10515,6 +10521,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         channelInfoRow = -1;
         usernameRow = -1;
         screenTimeRow = -1; // === SCREEN_TIME_FEATURE === (row index init)
+        forwardSensitivityRow = -1; // === FORWARD_SENSITIVITY === (row index init)
         settingsTimerRow = -1;
         settingsKeyRow = -1;
         notificationsDividerRow = -1;
@@ -10710,6 +10717,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (user profile row)
                 chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row ===
+                forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (user profile row)
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10870,6 +10878,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
                 chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (chat profile) ===
+                forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (chat profile row)
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
@@ -13631,6 +13640,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         String timeStr = org.telegram.messenger.ScreenTimeTracker.formatDuration(todayMs);
                         detailCell.setTextAndValue(timeStr, "Screen time today", false);
                         // === SCREEN_TIME_FEATURE END ===
+                    } else if (position == forwardSensitivityRow) {
+                        // === FORWARD_SENSITIVITY START === (bind forwarding sensitivity value in profile)
+                        detailCell.setTextAndValue(org.telegram.messenger.ForwardSensitivity.getModeName(getDialogId()), "Forwarding sensitivity", false);
+                        // === FORWARD_SENSITIVITY END ===
                     }
                     if (containsGift) {
                         Drawable drawable = ContextCompat.getDrawable(detailCell.getContext(), R.drawable.msg_input_gift);
@@ -14322,7 +14335,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == chatIdRow || position == screenTimeRow /* === SCREEN_TIME_FEATURE === */) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == chatIdRow || position == screenTimeRow || position == forwardSensitivityRow /* === SCREEN_TIME_FEATURE === === FORWARD_SENSITIVITY === */) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
