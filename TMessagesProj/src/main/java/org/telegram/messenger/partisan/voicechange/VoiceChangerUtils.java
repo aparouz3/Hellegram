@@ -10,12 +10,14 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public class VoiceChangerUtils {
-    private static final Map<VoiceChanger, Pair<Integer, VoiceChangeType>> runningVoiceChangers = new HashMap<>();
+    // ConcurrentHashMap: put() from recordQueue thread, remove() from DSP/UI threads,
+    // read from UI thread (onDraw) — must be thread-safe to avoid CME/corruption
+    private static final Map<VoiceChanger, Pair<Integer, VoiceChangeType>> runningVoiceChangers = new ConcurrentHashMap<>();
     private static int pendingCallAccountNum = -1;
 
     private static final String PER_CHAT_PREFS = "voice_changer_per_chat";
@@ -67,8 +69,10 @@ public class VoiceChangerUtils {
         runningVoiceChangers.put(voiceChanger, new Pair<>(accountNum, type));
         AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.voiceChangingStateChanged));
         voiceChanger.setStopCallback(() -> {
-            runningVoiceChangers.remove(voiceChanger);
-            AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.voiceChangingStateChanged));
+            AndroidUtilities.runOnUIThread(() -> {
+                runningVoiceChangers.remove(voiceChanger);
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.voiceChangingStateChanged);
+            });
         });
         return voiceChanger;
     }
