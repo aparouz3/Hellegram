@@ -20,6 +20,8 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LaunchActivity;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class ForwardSensitivity {
 
@@ -73,46 +75,79 @@ public class ForwardSensitivity {
      *   false — no confirmation needed; the caller should re-enter the send flow normally.
      */
     public static boolean checkForwardSensitivity(int currentAccount, long peer, ArrayList<MessageObject> messages, Utilities.Callback<Boolean> onResult) {
-        int mode = getMode(peer);
-        if (mode == MODE_NORMAL) {
-            return false;
-        }
-        if (mode == MODE_EXTREME) {
-            showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
-            return true;
-        }
         final long myId = UserConfig.getInstance(currentAccount).getClientUserId();
+
+        // Collect every dialog whose mode must be consulted: the destination peer
+        // AND the source dialog each message is being forwarded FROM.
+        Set<Long> dialogsToCheck = new LinkedHashSet<>();
+        dialogsToCheck.add(peer);
         for (int a = 0; a < messages.size(); a++) {
+            MessageObject msg = messages.get(a);
+            if (msg != null) {
+                long src = msg.getDialogId();
+                if (src != 0) {
+                    dialogsToCheck.add(src);
+                }
+            }
+        }
+
+        // Extreme on any involved dialog always asks.
+        for (long d : dialogsToCheck) {
+            if (getMode(d) == MODE_EXTREME) {
+                showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
+                return true;
+            }
+        }
+
+        boolean needConfirm = false;
+        for (int a = 0; a < messages.size() && !needConfirm; a++) {
             MessageObject msg = messages.get(a);
             if (msg == null) {
                 continue;
             }
-            if (mode == MODE_HIGH) {
-                if (msg.getDialogId() == peer) {
-                    showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
-                    return true;
+            final long srcDialog = msg.getDialogId();
+            int destMode = getMode(peer);
+            int srcMode = getMode(srcDialog);
+
+            if (destMode == MODE_HIGH || srcMode == MODE_HIGH) {
+                // High: forwarding from a chat back INTO that same chat
+                if ((destMode == MODE_HIGH && srcDialog == peer)
+                        || (srcMode == MODE_HIGH && srcDialog == peer)) {
+                    needConfirm = true;
+                    break;
                 }
-            } else if (mode == MODE_HIGH_EXTREME) {
+            }
+            if (destMode == MODE_HIGH_EXTREME || srcMode == MODE_HIGH_EXTREME) {
                 long authorId = getOriginalAuthorId(msg);
-                if (authorId == 0 || authorId == myId) {
+                if (authorId == 0) {
                     continue;
                 }
-                if (peer == authorId) {
-                    // Forwarded to the author's PM
-                    showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
-                    return true;
+                // Never warn about forwarding MY OWN message
+                if (authorId == myId) {
+                    continue;
                 }
+                // Forwarding to the author's PM?
+                if (peer == authorId) {
+                    needConfirm = true;
+                    break;
+                }
+                // Forwarding into a group where the author is a member?
                 if (DialogObject.isChatDialog(peer)) {
                     final long chatId = -peer;
                     if (isUserInChatCached(currentAccount, authorId, chatId)) {
-                        showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
-                        return true;
+                        needConfirm = true;
+                        break;
                     }
-                    // Cached participants are unreliable/incomplete — ask the server
+                    // Cached participants are unreliable/incomplete — ask the server.
+                    // onResult(true) after user approves the dialog, onResult(false) if author not in chat.
                     checkCommonChats(currentAccount, authorId, chatId, peer, messages.size(), onResult);
-                    return true; // async check in flight
+                    return true; // async server check in flight — caller must stop the send flow
                 }
             }
+        }
+        if (needConfirm) {
+            showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
+            return true;
         }
         return false;
     }
