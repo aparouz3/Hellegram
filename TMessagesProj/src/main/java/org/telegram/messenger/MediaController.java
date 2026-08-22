@@ -5163,7 +5163,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
 
     public void setVoiceChangingEnabled(boolean enabled) {
         if (enabled && voiceChanger == null) {
-            if (audioRecorder != null && recordingCurrentAccount != 0) {
+            if (audioRecorder != null) {
                 voiceChanger = org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.createVoiceChangerIfNeeded(
                         recordingCurrentAccount,
                         recordDialogId,

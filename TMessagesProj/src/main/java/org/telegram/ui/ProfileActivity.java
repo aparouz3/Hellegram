@@ -4304,13 +4304,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             listView.stopScroll();
             if (position == forwardSensitivityRow) {
                 // === FORWARD_SENSITIVITY START === (open per-chat forwarding sensitivity picker from profile)
-                org.telegram.messenger.ForwardSensitivity.showModePickerDialog(ProfileActivity.this, getDialogId());
-                updateListAnimated(false);
+                org.telegram.messenger.ForwardSensitivity.showModePickerDialog(ProfileActivity.this, getDialogId(), () -> updateListAnimated(false));
                 // === FORWARD_SENSITIVITY END ===
             } else if (position == voiceChangerRow) {
                 // === VOICE_CHANGER START === (open per-chat voice changer settings from profile)
-                org.telegram.messenger.partisan.voicechange.VoiceChangerUI.showSettingsDialog(ProfileActivity.this, getDialogId());
-                updateListAnimated(false);
+                org.telegram.messenger.partisan.voicechange.VoiceChangerUI.showSettingsDialog(ProfileActivity.this, getDialogId(), () -> updateListAnimated(false));
                 // === VOICE_CHANGER END ===
             } else if (position == affiliateRow) {
                 TLRPC.User user = getMessagesController().getUser(userId);

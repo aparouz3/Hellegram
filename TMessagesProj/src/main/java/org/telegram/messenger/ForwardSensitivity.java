@@ -105,6 +105,10 @@ public class ForwardSensitivity {
      * Works from any fragment with a parent activity. Tapping a mode applies it immediately.
      */
     public static void showModePickerDialog(BaseFragment fragment, long dialogId) {
+        showModePickerDialog(fragment, dialogId, null);
+    }
+
+    public static void showModePickerDialog(BaseFragment fragment, long dialogId, Runnable onChanged) {
         if (fragment == null || fragment.getParentActivity() == null) {
             return;
         }
@@ -121,7 +125,12 @@ public class ForwardSensitivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, fragment.getResourceProvider());
         builder.setTitle("Forwarding sensitivity");
         builder.setSubtitle(chatName + " — current: " + getModeName(currentMode));
-        builder.setItems(options, (dialogInterface, which) -> setMode(dialogId, which));
+        builder.setItems(options, (dialogInterface, which) -> {
+            setMode(dialogId, which);
+            if (onChanged != null) {
+                onChanged.run();
+            }
+        });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.show();
     }

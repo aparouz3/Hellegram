@@ -1670,7 +1670,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 canvas.restore();
             }
             // === VOICE_CHANGER START === (voice changer toggle button next to pause)
-            if (sendButtonVisible) {
+            if (sendButtonVisible && !isInVideoMode()) {
                 voiceChangerRect.set(
                     pauseRect.centerX() - dpf2(48) - dpf2(36), pauseRect.top,
                     pauseRect.centerX() - dpf2(48), pauseRect.bottom
@@ -1778,7 +1778,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 if (sendButtonVisible) {
                     pausePressed = pauseRect.contains(x, y);
-                    voiceChangerPressed = voiceChangerRect.contains(x, y); // === VOICE_CHANGER ===
+                    voiceChangerPressed = !isInVideoMode() && voiceChangerRect.contains(x, y); // === VOICE_CHANGER ===
                 }
                 if (onceVisible && (recordCircle != null && snapAnimationProgress > .1f)) {
                     oncePressed = onceRect.contains(x, y);

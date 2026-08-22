@@ -24,6 +24,10 @@ import org.telegram.ui.Components.Switch;
 public class VoiceChangerUI {
 
     public static void showSettingsDialog(BaseFragment fragment, long dialogId) {
+        showSettingsDialog(fragment, dialogId, null);
+    }
+
+    public static void showSettingsDialog(BaseFragment fragment, long dialogId, Runnable onChanged) {
         if (fragment == null || fragment.getParentActivity() == null) {
             return;
         }
@@ -118,6 +122,9 @@ public class VoiceChangerUI {
                 VoiceChangerUtils.ensureParametersSet();
             }
             VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialogId, perChatSwitch.isChecked());
+            if (onChanged != null) {
+                onChanged.run();
+            }
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.show();
