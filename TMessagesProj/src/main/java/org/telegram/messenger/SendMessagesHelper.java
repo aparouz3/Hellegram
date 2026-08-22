@@ -2092,9 +2092,11 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             return 0;
         }
         // === FORWARD_SENSITIVITY START === (per-chat forward confirmation)
-        if (!sensitivityConfirmed && ForwardSensitivity.shouldConfirm(currentAccount, peer, messages)) {
-            ForwardSensitivity.showConfirmDialog(peer, messages.size(), () -> sendMessage(messages, peer, forwardFromMyName, hideCaption, notify, scheduleDate, scheduleRepeatPeriod, replyToTopMsg, video_timestamp, payStars, monoForumPeerId, suggestionParams, true));
-            return 0;
+        if (!sensitivityConfirmed) {
+            boolean sensitivityPath = ForwardSensitivity.checkForwardSensitivity(currentAccount, peer, messages, confirmed -> sendMessage(messages, peer, forwardFromMyName, hideCaption, notify, scheduleDate, scheduleRepeatPeriod, replyToTopMsg, video_timestamp, payStars, monoForumPeerId, suggestionParams, true));
+            if (sensitivityPath) {
+                return 0; // dialog shown or async check in flight — send resumes via callback
+            }
         }
         // === FORWARD_SENSITIVITY END ===
         int sendResult = 0;

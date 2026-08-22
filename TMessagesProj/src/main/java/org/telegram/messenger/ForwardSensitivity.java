@@ -59,18 +59,28 @@ public class ForwardSensitivity {
     }
 
     /**
-     * Returns true when a confirmation dialog must be shown before forwarding
-     * {@code messages} to {@code peer} according to that chat's sensitivity mode.
+     * Checks whether forwarding {@code messages} to {@code peer} needs a confirmation
+     * according to that chat's sensitivity mode.
+     *
+     * @return true if the decision is made (or async check in flight) — the callback has been
+     *         or will be invoked, and the caller must stop the normal send flow.
+     *         false if no confirmation is needed — the caller continues sending normally.
+     *
+     * The callback is always invoked (possibly later, from the UI thread) with:
+     *   true  — confirmation dialog was shown and the user approved (or will approve); the caller
+     *           should re-enter the send flow with sensitivityConfirmed=true.
+     *   false — no confirmation needed; the caller should re-enter the send flow normally.
      */
-    public static boolean shouldConfirm(long peer, ArrayList<MessageObject> messages) {
-        return shouldConfirm(UserConfig.selectedAccount, peer, messages);
-    }
-
-    public static boolean shouldConfirm(int currentAccount, long peer, ArrayList<MessageObject> messages) {
+    public static boolean checkForwardSensitivity(int currentAccount, long peer, ArrayList<MessageObject> messages, Utilities.Callback<Boolean> onResult) {
         int mode = getMode(peer);
+        if (mode == MODE_NORMAL) {
+            return false;
+        }
         if (mode == MODE_EXTREME) {
+            showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
             return true;
         }
+        final long myId = UserConfig.getInstance(currentAccount).getClientUserId();
         for (int a = 0; a < messages.size(); a++) {
             MessageObject msg = messages.get(a);
             if (msg == null) {
@@ -78,22 +88,28 @@ public class ForwardSensitivity {
             }
             if (mode == MODE_HIGH) {
                 if (msg.getDialogId() == peer) {
+                    showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
                     return true;
                 }
             } else if (mode == MODE_HIGH_EXTREME) {
                 long authorId = getOriginalAuthorId(msg);
-                if (authorId == 0) {
+                if (authorId == 0 || authorId == myId) {
                     continue;
                 }
-                long myId = UserConfig.getInstance(currentAccount).getClientUserId();
-                if (authorId == myId) {
-                    continue; // own messages need no confirmation
-                }
                 if (peer == authorId) {
-                    return true; // forwarded to the author's PM
+                    // Forwarded to the author's PM
+                    showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
+                    return true;
                 }
-                if (DialogObject.isChatDialog(peer) && isUserInChat(currentAccount, authorId, -peer)) {
-                    return true; // forwarded to a group where the author is present
+                if (DialogObject.isChatDialog(peer)) {
+                    final long chatId = -peer;
+                    if (isUserInChatCached(currentAccount, authorId, chatId)) {
+                        showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
+                        return true;
+                    }
+                    // Cached participants are unreliable/incomplete — ask the server
+                    checkCommonChats(currentAccount, authorId, chatId, peer, messages.size(), onResult);
+                    return true; // async check in flight
                 }
             }
         }
@@ -129,7 +145,7 @@ public class ForwardSensitivity {
     }
 
     /** Checks cached chat participants (basic groups + megagroups) for the user. */
-    private static boolean isUserInChat(int currentAccount, long userId, long chatId) {
+    private static boolean isUserInChatCached(int currentAccount, long userId, long chatId) {
         try {
             TLRPC.ChatFull chatFull = MessagesController.getInstance(currentAccount).getChatFull(chatId);
             if (chatFull != null && chatFull.participants != null && chatFull.participants.participants != null) {
@@ -144,6 +160,46 @@ public class ForwardSensitivity {
             FileLog.e(e);
         }
         return false;
+    }
+
+    /** Asks the server for the chats shared between me and the user; if the destination chat is among them, the user is in it. */
+    private static void checkCommonChats(int currentAccount, long userId, long chatId, long peer, int count, Utilities.Callback<Boolean> onResult) {
+        try {
+            TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(userId);
+            if (user == null) {
+                onResult.run(false);
+                return;
+            }
+            TLRPC.InputUser inputUser = MessagesController.getInstance(currentAccount).getInputUser(user);
+            if (inputUser == null) {
+                onResult.run(false);
+                return;
+            }
+            TLRPC.TL_messages_getCommonChats req = new TLRPC.TL_messages_getCommonChats();
+            req.user_id = inputUser;
+            req.max_id = 0;
+            req.limit = 100;
+            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                boolean inChat = false;
+                if (response instanceof TLRPC.TL_messages_chats) {
+                    TLRPC.TL_messages_chats chats = (TLRPC.TL_messages_chats) response;
+                    for (int i = 0; i < chats.chats.size(); i++) {
+                        if (chats.chats.get(i) != null && chats.chats.get(i).id == chatId) {
+                            inChat = true;
+                            break;
+                        }
+                    }
+                }
+                if (inChat) {
+                    showConfirmDialog(peer, count, () -> onResult.run(true));
+                } else {
+                    onResult.run(false);
+                }
+            }));
+        } catch (Exception e) {
+            FileLog.e(e);
+            onResult.run(false);
+        }
     }
 
     /**

@@ -271,6 +271,24 @@ elseif(${ANDROID_ABI} STREQUAL "arm64-v8a")
             rlottie/src/vector/pixman/pixman-arma64-neon-asm.S)
 endif()
 
+#world
+# === VOICE_CHANGER === (WORLD vocoder native library)
+add_library(world STATIC
+        third_party/world/harvest.cpp
+        third_party/world/fft.cpp
+        third_party/world/stonemask.cpp
+        third_party/world/synthesis.cpp
+        third_party/world/synthesisrealtime.cpp
+        third_party/world/matlabfunctions.cpp
+        third_party/world/d4c.cpp
+        third_party/world/dio.cpp
+        third_party/world/cheaptrick.cpp
+        third_party/world/codec.cpp
+        third_party/world/common.cpp)
+set_target_properties(world PROPERTIES ANDROID_ARM_MODE arm)
+target_include_directories(world PUBLIC
+        third_party/world)
+
 
 #flac
 add_library(flac STATIC
@@ -376,6 +394,7 @@ add_library(${NATIVE_LIB} SHARED
         genann.c
         secureid_ocr.cpp
         tde2e/bridge.cpp
+        partisan/voicechange/world.cpp
 )
 
 target_compile_options(${NATIVE_LIB} PUBLIC
@@ -618,6 +637,7 @@ target_include_directories(${NATIVE_LIB} PUBLIC
         opus/
         opus/opusfile
         third_party/libyuv/include
+        third_party/world
         boringssl/include
         ffmpeg/include
         emoji
@@ -661,6 +681,7 @@ target_link_libraries(${NATIVE_LIB}
         android
         OpenSLES
         cpufeatures
+        world
         breakpad)
 
 #if (${ANDROID_ABI} STREQUAL "x86" OR ${ANDROID_ABI} STREQUAL "x86_64")
