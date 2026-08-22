@@ -2092,7 +2092,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             return 0;
         }
         // === FORWARD_SENSITIVITY START === (per-chat forward confirmation)
-        if (!sensitivityConfirmed && ForwardSensitivity.shouldConfirm(peer, messages)) {
+        if (!sensitivityConfirmed && ForwardSensitivity.shouldConfirm(currentAccount, peer, messages)) {
             ForwardSensitivity.showConfirmDialog(peer, messages.size(), () -> sendMessage(messages, peer, forwardFromMyName, hideCaption, notify, scheduleDate, scheduleRepeatPeriod, replyToTopMsg, video_timestamp, payStars, monoForumPeerId, suggestionParams, true));
             return 0;
         }
