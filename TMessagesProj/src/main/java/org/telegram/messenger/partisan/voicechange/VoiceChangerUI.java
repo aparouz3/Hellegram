@@ -5,7 +5,6 @@ import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -51,7 +50,7 @@ public class VoiceChangerUI {
         Switch globalSwitch = new Switch(activity, resourcesProvider);
         globalSwitch.setChecked(VoiceChangeSettings.voiceChangeEnabled.get().orElse(false), false);
         globalSwitch.setOnCheckedChangeListener((view, isChecked) -> VoiceChangeSettings.voiceChangeEnabled.set(isChecked));
-        container.addView(makeSwitchRow(activity, resourcesProvider, "Voice changer enabled", "Master switch for all chats", globalSwitch, textColor, grayColor));
+        container.addView(makeSwitchRow(activity, resourcesProvider, "Voice changer enabled", "Global master switch — auto-enabled when you turn on a chat", globalSwitch, textColor, grayColor));
 
         // ---- Aggressive level ----
         Switch aggressiveSwitch = new Switch(activity, resourcesProvider);
@@ -119,6 +118,8 @@ public class VoiceChangerUI {
         builder.setView(container);
         builder.setPositiveButton(LocaleController.getString(R.string.Done), (dialogInterface, i) -> {
             if (perChatSwitch.isChecked()) {
+                // Ensure the feature actually works: global master ON + params set
+                VoiceChangeSettings.voiceChangeEnabled.set(true);
                 VoiceChangerUtils.ensureParametersSet();
             }
             VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialogId, perChatSwitch.isChecked());
@@ -135,6 +136,11 @@ public class VoiceChangerUI {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, AndroidUtilities.dp(8), 0, AndroidUtilities.dp(8));
+        // Switch is a passive drawing view (no touch handling) — the row must toggle it
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setBackground(Theme.getSelectorDrawable(false));
+        row.setOnClickListener(v -> switchView.setChecked(!switchView.isChecked(), true));
 
         LinearLayout textContainer = new LinearLayout(activity);
         textContainer.setOrientation(LinearLayout.VERTICAL);
@@ -158,12 +164,15 @@ public class VoiceChangerUI {
 
         row.addView(textContainer);
 
-        FrameLayout switchContainer = new FrameLayout(activity);
-        LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(24));
+        // Explicit size for the switch (it has no onMeasure) + click handling on the switch itself
+        LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(44), AndroidUtilities.dp(28));
         switchLp.leftMargin = AndroidUtilities.dp(12);
-        switchContainer.setLayoutParams(switchLp);
-        switchContainer.addView(switchView);
-        row.addView(switchContainer);
+        switchView.setLayoutParams(switchLp);
+        switchView.setClickable(true);
+        switchView.setFocusable(true);
+        switchView.setDrawRipple(true);
+        switchView.setOnClickListener(v -> switchView.setChecked(!switchView.isChecked(), true));
+        row.addView(switchView);
 
         return row;
     }

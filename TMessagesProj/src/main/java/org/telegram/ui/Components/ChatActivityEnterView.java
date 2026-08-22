@@ -1790,6 +1790,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     boolean newState = !MediaController.getInstance().isVoiceChangingActive();
                     if (newState) {
                         org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.ensureParametersSet();
+                        org.telegram.messenger.partisan.voicechange.VoiceChangeSettings.voiceChangeEnabled.set(true);
                     }
                     org.telegram.messenger.partisan.voicechange.VoiceChangerUtils.setVoiceChangeEnabledForDialog(dialog_id, newState);
                     MediaController.getInstance().setVoiceChangingEnabled(newState);
