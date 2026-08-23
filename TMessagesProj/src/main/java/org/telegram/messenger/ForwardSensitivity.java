@@ -1,11 +1,15 @@
 /*
- * Forward Sensitivity — per-chat forwarding confirmation.
- * Modes:
- *   Normal  (0) — no confirmation, standard behavior.
- *   High    (1) — when forwarding a message FROM this chat BACK INTO this same chat,
- *                 ask one extra confirmation before sending.
- *   Extreme (2) — every time any message is forwarded TO this chat, ask confirmation.
- * Stored per dialog_id in SharedPreferences.
+ /* Forward Sensitivity — per-chat forwarding confirmation.
+  * Modes:
+  *   Normal       (0) — no confirmation, standard behavior.
+  *   High         (1) — when forwarding a message FROM this chat BACK INTO this same chat,
+  *                      ask one extra confirmation before sending.
+  *   Extreme      (2) — every time any message is forwarded TO this chat, ask confirmation.
+  *   HighExtreme  (3) — author-aware: confirms when a message is forwarded to its author's
+  *                      PM or into any group the author is a member of. Applies whether the
+  *                      mode is set on the destination, source, or the author's own chat.
+  *   UltraExtreme (4) — every forward OUT of this chat asks confirmation, regardless of destination.
+  * Stored per dialog_id in SharedPreferences.
  */
 package org.telegram.messenger;
 
@@ -29,6 +33,7 @@ public class ForwardSensitivity {
     public static final int MODE_HIGH = 1;
     public static final int MODE_EXTREME = 2;
     public static final int MODE_HIGH_EXTREME = 3; // author-aware confirmation
+    public static final int MODE_ULTRA_EXTREME = 4; // every forward OUT of this chat
 
     private static final String PREFS = "forward_sensitivity";
 
@@ -56,6 +61,8 @@ public class ForwardSensitivity {
                 return "Extreme";
             case MODE_HIGH_EXTREME:
                 return "High Extreme";
+            case MODE_ULTRA_EXTREME:
+                return "Ultra Extreme";
             default:
                 return "Normal";
         }
@@ -91,9 +98,12 @@ public class ForwardSensitivity {
             }
         }
 
-        // Extreme on any involved dialog always asks.
+        // Extreme / Ultra Extreme on the destination (or any involved dialog) always asks.
+        // Ultra Extreme additionally protects every forward OUT of a chat that has it
+        // (checked per-message in the loop below).
         for (long d : dialogsToCheck) {
-            if (getMode(d) == MODE_EXTREME) {
+            int mode = getMode(d);
+            if (mode == MODE_EXTREME || mode == MODE_ULTRA_EXTREME) {
                 showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
                 return true;
             }
@@ -299,7 +309,8 @@ public class ForwardSensitivity {
                 getModeName(MODE_NORMAL) + " — no confirmation, standard behavior",
                 getModeName(MODE_HIGH) + " — confirm when forwarding from this chat back into itself",
                 getModeName(MODE_EXTREME) + " — confirm every forward into this chat",
-                getModeName(MODE_HIGH_EXTREME) + " — confirm when a message is forwarded to its author's PM or a group the author is in"
+                getModeName(MODE_HIGH_EXTREME) + " — confirm when a message is forwarded to its author's PM or a group the author is in",
+                getModeName(MODE_ULTRA_EXTREME) + " — confirm every forward out of this chat"
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, fragment.getResourceProvider());
