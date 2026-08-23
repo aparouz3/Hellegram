@@ -117,32 +117,32 @@ public class ForwardSensitivity {
                     break;
                 }
             }
-            if (destMode == MODE_HIGH_EXTREME || srcMode == MODE_HIGH_EXTREME) {
-                long authorId = getOriginalAuthorId(msg);
-                if (authorId == 0) {
-                    continue;
-                }
-                // Never warn about forwarding MY OWN message
-                if (authorId == myId) {
-                    continue;
-                }
-                // Forwarding to the author's PM?
-                if (peer == authorId) {
+            long authorId = getOriginalAuthorId(srcDialog, msg);
+            if (authorId == 0 || authorId == myId) {
+                continue;
+            }
+            // High Extreme follows the AUTHOR: it can be enabled on the destination chat,
+            // on the source chat, OR directly on the author's own chat (PM).
+            int authorMode = getMode(authorId);
+            if (destMode != MODE_HIGH_EXTREME && srcMode != MODE_HIGH_EXTREME && authorMode != MODE_HIGH_EXTREME) {
+                continue;
+            }
+            // Forwarding to the author's PM?
+            if (peer == authorId) {
+                needConfirm = true;
+                break;
+            }
+            // Forwarding into a group where the author is a member?
+            if (DialogObject.isChatDialog(peer)) {
+                final long chatId = -peer;
+                if (isUserInChatCached(currentAccount, authorId, chatId)) {
                     needConfirm = true;
                     break;
                 }
-                // Forwarding into a group where the author is a member?
-                if (DialogObject.isChatDialog(peer)) {
-                    final long chatId = -peer;
-                    if (isUserInChatCached(currentAccount, authorId, chatId)) {
-                        needConfirm = true;
-                        break;
-                    }
-                    // Cached participants are unreliable/incomplete — ask the server.
-                    // onResult(true) after user approves the dialog, onResult(false) if author not in chat.
-                    checkCommonChats(currentAccount, authorId, chatId, peer, messages.size(), onResult);
-                    return true; // async server check in flight — caller must stop the send flow
-                }
+                // Cached participants are unreliable/incomplete — ask the server.
+                // onResult(true) after user approves the dialog, onResult(false) if author not in chat.
+                checkCommonChats(currentAccount, authorId, chatId, peer, messages.size(), onResult);
+                return true; // async server check in flight — caller must stop the send flow
             }
         }
         if (needConfirm) {
@@ -152,11 +152,26 @@ public class ForwardSensitivity {
         return false;
     }
 
-    /** The original author (user) of the message, or 0 if it's a channel post / anonymous / unknown. */
-    private static long getOriginalAuthorId(MessageObject msg) {
+    /** The protected author of a message being forwarded from {@code srcDialog}.
+     *  - From a PM (user dialog): the sender is the counterpart we protect,
+     *    even if the message itself was forwarded from a channel/post.
+     *  - From a group/channel: the original author (fwd_from) when it's a user,
+     *    otherwise the sender; 0 if unknown (channel post / anonymous). */
+    private static long getOriginalAuthorId(long srcDialog, MessageObject msg) {
         try {
             TLRPC.Message owner = msg.messageOwner;
             if (owner == null) {
+                return 0;
+            }
+            if (srcDialog > 0) {
+                // PM: protect the peer we're chatting with (the sender),
+                // regardless of fwd_from — X's forwarded channel post is still "from X".
+                if (owner.from_id != null && owner.from_id.user_id != 0) {
+                    return owner.from_id.user_id;
+                }
+                if (owner.peer_id != null && owner.peer_id.user_id != 0) {
+                    return owner.peer_id.user_id;
+                }
                 return 0;
             }
             if (owner.fwd_from != null) {
