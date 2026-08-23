@@ -10882,11 +10882,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (ChatObject.isPublic(currentChat)) {
                     usernameRow = rowCount++;
                 }
-                screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
-                chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (chat profile) ===
-                forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (chat profile row)
-                voiceChangerRow = rowCount++; // === VOICE_CHANGER === (chat profile row)
             }
+            // === HELLEGRAM ROWS === (always shown for chats/groups, not only when chat has about/location/isPublic)
+            screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
+            chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (chat profile) ===
+            forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (chat profile row)
+            voiceChangerRow = rowCount++; // === VOICE_CHANGER === (chat profile row)
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
                     emptyRow2 = rowCount++;
