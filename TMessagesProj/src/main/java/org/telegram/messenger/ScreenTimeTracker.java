@@ -32,6 +32,7 @@ public class ScreenTimeTracker {
     private boolean tracking = false;
     private boolean otherTracking = false;
     private long otherStartTime = 0;
+    private long lastChatResumedAt = 0; // === SCREEN_TIME_FIX === (detect chat-to-chat switch)
 
     private final Set<Long> alreadyAlerted = new HashSet<>();
 
@@ -79,10 +80,19 @@ public class ScreenTimeTracker {
         currentDialogId = dialogId;
         currentStartTime = System.currentTimeMillis();
         tracking = true;
+        lastChatResumedAt = System.currentTimeMillis(); // === SCREEN_TIME_FIX ===
     }
 
     public void onChatPaused() {
         flushCurrent();
+        // === SCREEN_TIME_FIX ===
+        // When a new chat replaces this one (e.g. opening channel comments opens
+        // another ChatActivity), the old ChatActivity's onPause fires right after
+        // the new one's onResume. If that happened within the last second, keep
+        // tracking for the new chat instead of stopping and falling back to "Other".
+        if (System.currentTimeMillis() - lastChatResumedAt < 1000) {
+            return;
+        }
         tracking = false;
         currentDialogId = 0;
         // When chat is paused, user returns to non-chat UI → start "other" tracking
