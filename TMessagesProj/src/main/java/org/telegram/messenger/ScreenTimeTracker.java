@@ -88,6 +88,16 @@ public class ScreenTimeTracker {
     public void onChatPaused() {
         flushCurrent();
         // === SCREEN_TIME_FIX ===
+        // App went to background (lock screen, home, another app): LaunchActivity.onPause
+        // runs BEFORE ChatActivity.onPause, so appInBackground is already true here.
+        // MUST be checked FIRST — otherwise the <1s chat-switch guard below would
+        // return early and leave tracking running while the app is in background.
+        if (appInBackground) {
+            tracking = false;
+            currentDialogId = 0;
+            return;
+        }
+        // === SCREEN_TIME_FIX ===
         // When a new chat replaces this one (e.g. opening channel comments opens
         // another ChatActivity), the old ChatActivity's onPause fires right after
         // the new one's onResume. If that happened within the last second, keep
@@ -97,13 +107,6 @@ public class ScreenTimeTracker {
         }
         tracking = false;
         currentDialogId = 0;
-        // === SCREEN_TIME_FIX ===
-        // App went to background (lock screen, home, another app): LaunchActivity.onPause
-        // runs BEFORE ChatActivity.onPause, so appInBackground is already true here.
-        // Do NOT start "other" tracking — background time must not be counted.
-        if (appInBackground) {
-            return;
-        }
         // When chat is paused, user returns to non-chat UI → start "other" tracking
         onOtherResumed();
     }
