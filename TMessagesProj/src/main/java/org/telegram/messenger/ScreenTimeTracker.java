@@ -33,6 +33,7 @@ public class ScreenTimeTracker {
     private boolean otherTracking = false;
     private long otherStartTime = 0;
     private long lastChatResumedAt = 0; // === SCREEN_TIME_FIX === (detect chat-to-chat switch)
+    private boolean appInBackground = false; // === SCREEN_TIME_FIX === (don't count background time)
 
     private final Set<Long> alreadyAlerted = new HashSet<>();
 
@@ -81,6 +82,7 @@ public class ScreenTimeTracker {
         currentStartTime = System.currentTimeMillis();
         tracking = true;
         lastChatResumedAt = System.currentTimeMillis(); // === SCREEN_TIME_FIX ===
+        appInBackground = false; // === SCREEN_TIME_FIX === (we're foreground again)
     }
 
     public void onChatPaused() {
@@ -95,6 +97,13 @@ public class ScreenTimeTracker {
         }
         tracking = false;
         currentDialogId = 0;
+        // === SCREEN_TIME_FIX ===
+        // App went to background (lock screen, home, another app): LaunchActivity.onPause
+        // runs BEFORE ChatActivity.onPause, so appInBackground is already true here.
+        // Do NOT start "other" tracking — background time must not be counted.
+        if (appInBackground) {
+            return;
+        }
         // When chat is paused, user returns to non-chat UI → start "other" tracking
         onOtherResumed();
     }
@@ -104,6 +113,7 @@ public class ScreenTimeTracker {
     // (e.g. dialog list, settings, profile, etc.)
 
     public void onOtherResumed() {
+        appInBackground = false; // === SCREEN_TIME_FIX ===
         // If chat tracking was active, flush it first
         if (tracking) {
             flushCurrent();
@@ -117,6 +127,7 @@ public class ScreenTimeTracker {
     }
 
     public void onOtherPaused() {
+        appInBackground = true; // === SCREEN_TIME_FIX ===
         flushOther();
         otherTracking = false;
     }
