@@ -1,14 +1,14 @@
 /*
  /* Forward Sensitivity — per-chat forwarding confirmation.
-  * Modes:
+  * Modes are CUMULATIVE — each mode includes all features of the modes below it:
   *   Normal       (0) — no confirmation, standard behavior.
-  *   High         (1) — when forwarding a message FROM this chat BACK INTO this same chat,
-  *                      ask one extra confirmation before sending.
-  *   Extreme      (2) — every time any message is forwarded TO this chat, ask confirmation.
-  *   HighExtreme  (3) — author-aware: confirms when a message is forwarded to its author's
-  *                      PM or into any group the author is a member of. Applies whether the
-  *                      mode is set on the destination, source, or the author's own chat.
-  *   UltraExtreme (4) — every forward OUT of this chat asks confirmation, regardless of destination.
+  *   High         (1) — forwarding FROM this chat back INTO this same chat asks.
+  *   Extreme      (2) — High + every forward INTO this chat asks.
+  *   HighExtreme  (3) — Extreme + author-aware: confirms when a message is forwarded
+  *                      to its author's PM or into any group the author is a member of
+  *                      (mode may be on destination, source, or the author's own chat).
+  *   UltraExtreme (4) — HighExtreme + every forward OUT of this chat asks,
+  *                      regardless of destination.
   * Stored per dialog_id in SharedPreferences.
  */
 package org.telegram.messenger;
@@ -24,8 +24,6 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LaunchActivity;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 public class ForwardSensitivity {
 
@@ -84,31 +82,6 @@ public class ForwardSensitivity {
     public static boolean checkForwardSensitivity(int currentAccount, long peer, ArrayList<MessageObject> messages, Utilities.Callback<Boolean> onResult) {
         final long myId = UserConfig.getInstance(currentAccount).getClientUserId();
 
-        // Collect every dialog whose mode must be consulted: the destination peer
-        // AND the source dialog each message is being forwarded FROM.
-        Set<Long> dialogsToCheck = new LinkedHashSet<>();
-        dialogsToCheck.add(peer);
-        for (int a = 0; a < messages.size(); a++) {
-            MessageObject msg = messages.get(a);
-            if (msg != null) {
-                long src = msg.getDialogId();
-                if (src != 0) {
-                    dialogsToCheck.add(src);
-                }
-            }
-        }
-
-        // Extreme / Ultra Extreme on the destination (or any involved dialog) always asks.
-        // Ultra Extreme additionally protects every forward OUT of a chat that has it
-        // (checked per-message in the loop below).
-        for (long d : dialogsToCheck) {
-            int mode = getMode(d);
-            if (mode == MODE_EXTREME || mode == MODE_ULTRA_EXTREME) {
-                showConfirmDialog(peer, messages.size(), () -> onResult.run(true));
-                return true;
-            }
-        }
-
         boolean needConfirm = false;
         for (int a = 0; a < messages.size() && !needConfirm; a++) {
             MessageObject msg = messages.get(a);
@@ -119,22 +92,36 @@ public class ForwardSensitivity {
             int destMode = getMode(peer);
             int srcMode = getMode(srcDialog);
 
-            if (destMode == MODE_HIGH || srcMode == MODE_HIGH) {
-                // High: forwarding from a chat back INTO that same chat
-                if ((destMode == MODE_HIGH && srcDialog == peer)
-                        || (srcMode == MODE_HIGH && srcDialog == peer)) {
-                    needConfirm = true;
-                    break;
-                }
+            // Modes are CUMULATIVE — a higher mode includes all features of lower modes.
+
+            // Ultra Extreme (4) on the SOURCE: every forward OUT of this chat asks,
+            // regardless of destination. (Also covers Extreme+High for that chat.)
+            if (srcMode >= MODE_ULTRA_EXTREME) {
+                needConfirm = true;
+                break;
             }
+
+            // Extreme (2+) on the DESTINATION: every forward INTO this chat asks.
+            // (High Extreme and Ultra Extreme also include this.)
+            if (destMode >= MODE_EXTREME) {
+                needConfirm = true;
+                break;
+            }
+
+            // High (1+): forwarding from a chat back INTO that same chat asks.
+            if (srcDialog == peer && (destMode >= MODE_HIGH || srcMode >= MODE_HIGH)) {
+                needConfirm = true;
+                break;
+            }
+
+            // High Extreme (3+) — author-aware: mode set on the destination chat,
+            // the source chat, OR directly on the author's own chat (PM).
             long authorId = getOriginalAuthorId(srcDialog, msg);
             if (authorId == 0 || authorId == myId) {
                 continue;
             }
-            // High Extreme follows the AUTHOR: it can be enabled on the destination chat,
-            // on the source chat, OR directly on the author's own chat (PM).
             int authorMode = getMode(authorId);
-            if (destMode != MODE_HIGH_EXTREME && srcMode != MODE_HIGH_EXTREME && authorMode != MODE_HIGH_EXTREME) {
+            if (destMode < MODE_HIGH_EXTREME && srcMode < MODE_HIGH_EXTREME && authorMode < MODE_HIGH_EXTREME) {
                 continue;
             }
             // Forwarding to the author's PM?
@@ -308,9 +295,9 @@ public class ForwardSensitivity {
         String[] options = {
                 getModeName(MODE_NORMAL) + " — no confirmation, standard behavior",
                 getModeName(MODE_HIGH) + " — confirm when forwarding from this chat back into itself",
-                getModeName(MODE_EXTREME) + " — confirm every forward into this chat",
-                getModeName(MODE_HIGH_EXTREME) + " — confirm when a message is forwarded to its author's PM or a group the author is in",
-                getModeName(MODE_ULTRA_EXTREME) + " — confirm every forward out of this chat"
+                getModeName(MODE_EXTREME) + " — High + confirm every forward into this chat",
+                getModeName(MODE_HIGH_EXTREME) + " — Extreme + confirm when a message is forwarded to its author's PM or a group the author is in",
+                getModeName(MODE_ULTRA_EXTREME) + " — High Extreme + confirm every forward out of this chat"
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, fragment.getResourceProvider());
