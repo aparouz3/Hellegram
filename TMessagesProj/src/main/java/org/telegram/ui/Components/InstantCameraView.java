@@ -112,12 +112,17 @@ import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
+
+import org.telegram.messenger.partisan.voicechange.VoiceChangeType;
+import org.telegram.messenger.partisan.voicechange.VoiceChanger;
+import org.telegram.messenger.partisan.voicechange.VoiceChangerUtils;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -2187,6 +2192,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
         private AudioRecord audioRecorder;
 
+        private VoiceChanger voiceChanger;
+        private final ArrayDeque<byte[]> changedAudioQueue = new ArrayDeque<>();
+
         private ArrayBlockingQueue<AudioBufferInfo> buffers = new ArrayBlockingQueue<>(10);
         private ArrayList<Bitmap> keyframeThumbs = new ArrayList<>();
         private DispatchQueue generateKeyframeThumbsQueue;
@@ -2249,6 +2257,34 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                             AndroidUtilities.runOnUIThread(() -> NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.recordProgressChanged, recordingGuid, amplitude));
                             byteBuffer.position(0);
                         }
+                        // === VOICE_PRESET_FEATURE START === (apply voice changer to video message audio)
+                        if (voiceChanger != null && readResult > 0) {
+                            byte[] raw = VoiceChangerUtils.getBytesFromByteBuffer(byteBuffer, readResult);
+                            voiceChanger.write(raw);
+                            byte[] queued = changedAudioQueue.poll();
+                            if (queued == null) {
+                                // WORLD vocoder buffers ~350ms before producing output;
+                                // feed silence meanwhile to keep audio/video in sync.
+                                queued = new byte[readResult];
+                            }
+                            byteBuffer.clear();
+                            if (queued.length >= readResult) {
+                                byteBuffer.put(queued, 0, readResult);
+                                if (queued.length > readResult) {
+                                    byte[] rest = new byte[queued.length - readResult];
+                                    System.arraycopy(queued, readResult, rest, 0, rest.length);
+                                    changedAudioQueue.addFirst(rest);
+                                }
+                            } else {
+                                byteBuffer.put(queued);
+                                for (int i = queued.length; i < readResult; i++) {
+                                    byteBuffer.put((byte) 0);
+                                }
+                            }
+                            byteBuffer.limit(readResult);
+                            byteBuffer.position(0);
+                        }
+                        // === VOICE_PRESET_FEATURE END ===
                         if (readResult <= 0) {
                             buffer.results = a;
                             if (!running) {
@@ -2543,6 +2579,59 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 FileLog.e(e);
             }
         }
+
+        // === VOICE_PRESET_FEATURE START === (flush remaining changed audio into the encoder on stop)
+        private void flushVoiceChangerOutput() {
+            if (voiceChanger == null || audioEncoder == null) {
+                return;
+            }
+            try {
+                voiceChanger.notifyWritingFinished();
+                long deadline = System.currentTimeMillis() + 5000;
+                while (!voiceChanger.isVoiceChangingFinished() && System.currentTimeMillis() < deadline) {
+                    byte[] changed = voiceChanger.readAll();
+                    if (changed != null && changed.length > 0) {
+                        changedAudioQueue.add(changed);
+                    }
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+                byte[] changed = voiceChanger.readAll();
+                if (changed != null && changed.length > 0) {
+                    changedAudioQueue.add(changed);
+                }
+                while (!changedAudioQueue.isEmpty()) {
+                    byte[] queued = changedAudioQueue.poll();
+                    if (queued == null || queued.length == 0) {
+                        continue;
+                    }
+                    int inputBufferIndex = audioEncoder.dequeueInputBuffer(0);
+                    if (inputBufferIndex < 0) {
+                        changedAudioQueue.addFirst(queued);
+                        drainEncoder(false);
+                        continue;
+                    }
+                    ByteBuffer inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
+                    if (inputBuffer == null) {
+                        continue;
+                    }
+                    inputBuffer.clear();
+                    inputBuffer.put(queued);
+                    long durationUs = 1000000L * queued.length / audioSampleRate / 2;
+                    long time = audioLast >= 0 ? audioLast : 0;
+                    audioLastDt = time - audioLast;
+                    audioLast = time + durationUs;
+                    audioEncoder.queueInputBuffer(inputBufferIndex, 0, queued.length, time, 0);
+                }
+                voiceChanger = null;
+            } catch (Throwable e) {
+                FileLog.e(e);
+                voiceChanger = null;
+            }
+        }
+        // === VOICE_PRESET_FEATURE END ===
 
         private void handleVideoFrameAvailable(long timestampNanos, Integer cameraId) {
             if (pauseRecorder || !cameraTextureAvailable) {
@@ -2927,6 +3016,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
             try {
                 FileLog.d("InstantCamera handleStopRecording drain encoders");
+                flushVoiceChangerOutput();
                 drainEncoder(true);
             } catch (Exception e) {
                 FileLog.e(e);
@@ -3191,6 +3281,22 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("InstantCamera initied audio record with channels " + audioRecorder.getChannelCount() + " sample rate = " + audioRecorder.getSampleRate() + " bufferSize = " + bufferSize);
                 }
+                // === VOICE_PRESET_FEATURE START === (apply voice changer to video messages)
+                try {
+                    voiceChanger = VoiceChangerUtils.createVoiceChangerIfNeeded(
+                            currentAccount,
+                            delegate.getDialogId(),
+                            VoiceChangeType.VIDEO_MESSAGE,
+                            audioSampleRate
+                    );
+                } catch (Exception e) {
+                    FileLog.e(e);
+                    voiceChanger = null;
+                }
+                if (voiceChanger != null) {
+                    changedAudioQueue.clear();
+                }
+                // === VOICE_PRESET_FEATURE END ===
                 pauseRecorder = false;
                 Thread thread = new Thread(recorderRunnable);
                 thread.setPriority(Thread.MAX_PRIORITY);
