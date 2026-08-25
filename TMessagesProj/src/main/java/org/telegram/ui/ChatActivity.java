@@ -29881,7 +29881,7 @@ public class ChatActivity extends BaseFragment implements
         super.onPause();
         // === SCREEN_TIME_FEATURE START === (onPause: stop title timer + flush accumulated time)
         AndroidUtilities.cancelRunOnUIThread(screenTimeTitleRunnable);
-        org.telegram.messenger.ScreenTimeTracker.getInstance().onChatPaused();
+        org.telegram.messenger.ScreenTimeTracker.getInstance().onChatPaused(dialog_id);
         // === SCREEN_TIME_FEATURE END ===
         scrolling = false;
         if (scrimPopupWindow != null) {

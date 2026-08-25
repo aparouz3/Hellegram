@@ -32,7 +32,6 @@ public class ScreenTimeTracker {
     private boolean tracking = false;
     private boolean otherTracking = false;
     private long otherStartTime = 0;
-    private long lastChatResumedAt = 0; // === SCREEN_TIME_FIX === (detect chat-to-chat switch)
     private boolean appInBackground = false; // === SCREEN_TIME_FIX === (don't count background time)
 
     private final Set<Long> alreadyAlerted = new HashSet<>();
@@ -81,16 +80,15 @@ public class ScreenTimeTracker {
         currentDialogId = dialogId;
         currentStartTime = System.currentTimeMillis();
         tracking = true;
-        lastChatResumedAt = System.currentTimeMillis(); // === SCREEN_TIME_FIX ===
         appInBackground = false; // === SCREEN_TIME_FIX === (we're foreground again)
     }
 
-    public void onChatPaused() {
+    public void onChatPaused(long dialogId) {
         flushCurrent();
         // === SCREEN_TIME_FIX ===
         // App went to background (lock screen, home, another app): LaunchActivity.onPause
         // runs BEFORE ChatActivity.onPause, so appInBackground is already true here.
-        // MUST be checked FIRST — otherwise the <1s chat-switch guard below would
+        // MUST be checked FIRST — otherwise the chat-switch guard below would
         // return early and leave tracking running while the app is in background.
         if (appInBackground) {
             tracking = false;
@@ -100,9 +98,11 @@ public class ScreenTimeTracker {
         // === SCREEN_TIME_FIX ===
         // When a new chat replaces this one (e.g. opening channel comments opens
         // another ChatActivity), the old ChatActivity's onPause fires right after
-        // the new one's onResume. If that happened within the last second, keep
-        // tracking for the new chat instead of stopping and falling back to "Other".
-        if (System.currentTimeMillis() - lastChatResumedAt < 1000) {
+        // the new one's onResume. Detect that by comparing dialog IDs: if the chat
+        // being paused is NOT the one currently tracked, a newer chat already
+        // resumed on top — keep tracking it instead of stopping and falling back
+        // to "Other".
+        if (dialogId != currentDialogId) {
             return;
         }
         tracking = false;
@@ -130,8 +130,15 @@ public class ScreenTimeTracker {
     }
 
     public void onOtherPaused() {
-        appInBackground = true; // === SCREEN_TIME_FIX ===
+        appInBackground = true;
+        // === SCREEN_TIME_FIX ===
+        // Stop chat tracking too, not just "other": if ChatActivity.onPause
+        // doesn't run (edge cases), tracking would stay active and the whole
+        // background period would be flushed into the last chat on next resume.
+        flushCurrent();
         flushOther();
+        tracking = false;
+        currentDialogId = 0;
         otherTracking = false;
     }
 
