@@ -4,6 +4,7 @@ import org.telegram.messenger.partisan.voicechange.voiceprocessors.AudioSaverPro
 import org.telegram.messenger.partisan.voicechange.voiceprocessors.ChainedAudioProcessor;
 import org.telegram.messenger.partisan.voicechange.voiceprocessors.CombinedWorldProcessor;
 import org.telegram.messenger.partisan.voicechange.voiceprocessors.CombinedSpectrumProcessor;
+import org.telegram.messenger.partisan.voicechange.voiceprocessors.CustomEffectsProcessor;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,6 +56,19 @@ public class VoiceChanger {
         } else {
             addIntermediateDispatcherNode(new CombinedSpectrumProcessor(parametersProvider, sampleRate));
         }
+        // === VOICE_PRESET_FEATURE START === (custom preset effects: ring mod / low-pass / echo)
+        VoicePreset activePreset = VoiceChangeSettings.getActivePreset();
+        if (activePreset != null && activePreset.hasCustomEffects()) {
+            addIntermediateDispatcherNode(new CustomEffectsProcessor(
+                    activePreset.getRingModFrequency(),
+                    activePreset.getRingModMix(),
+                    activePreset.getLowPassCutoff(),
+                    activePreset.getEchoDelayMs(),
+                    activePreset.getEchoDecay(),
+                    sampleRate
+            ));
+        }
+        // === SCREEN_TIME_FEATURE END ===
     }
 
     protected void addIntermediateDispatcherNode(ChainedAudioProcessor processor) throws IOException {

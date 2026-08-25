@@ -41,6 +41,7 @@ public class VoiceChangeSettings {
     public static final BooleanSetting formantShiftingHarvest = new BooleanSetting("formantShiftingHarvest", false);
     public static final BooleanSetting voiceChangeWorksWithFakePasscode = new BooleanSetting("voiceChangeWorksWithFakePasscode", false);
     public static final LongSetting settingsSeed = new LongSetting("settingsSeed", 0L);
+    public static final StringSetting activePreset = new StringSetting("activePreset", VoicePreset.NONE.name());
 
     public static void loadSettings() {
         for (Setting<?> setting : getAllSettings()) {
@@ -64,6 +65,20 @@ public class VoiceChangeSettings {
 
     public static boolean isVoiceChangeTypeEnabled(@NonNull VoiceChangeType type) {
         return VoiceChangeSettings.enabledVoiceChangeTypes.getOrDefault().contains(type.toString());
+    }
+
+    public static VoicePreset getActivePreset() {
+        String name = activePreset.get().orElse(VoicePreset.NONE.name());
+        for (VoicePreset preset : VoicePreset.values()) {
+            if (preset.name().equals(name)) {
+                return preset;
+            }
+        }
+        return VoicePreset.NONE;
+    }
+
+    public static void setActivePreset(VoicePreset preset) {
+        activePreset.set(preset.name());
     }
 
     public static boolean toggleVoiceChangeType(@NonNull VoiceChangeType type) {

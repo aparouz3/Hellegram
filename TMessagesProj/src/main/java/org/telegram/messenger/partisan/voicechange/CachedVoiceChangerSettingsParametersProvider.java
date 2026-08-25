@@ -25,20 +25,39 @@ public class CachedVoiceChangerSettingsParametersProvider implements ParametersP
 
     public CachedVoiceChangerSettingsParametersProvider() {
         timeStretchFactor = 1.0;
-        aggressiveChangeLevel = VoiceChangeSettings.aggressiveChangeLevel.get().orElse(false);
-        spectrumDistortionParams = VoiceChangeSettings.spectrumDistortionParams.get().orElse("");
-        f0Shift = VoiceChangeSettings.f0Shift.get().orElse(1.0f);
-        lowRatio = VoiceChangeSettings.lowRatio.get().orElse(1.0f);
-        midRatio = VoiceChangeSettings.midRatio.get().orElse(1.0f);
-        highRatio = VoiceChangeSettings.highRatio.get().orElse(1.0f);
-        formantShiftingHarvest = VoiceChangeSettings.formantShiftingHarvest.get().orElse(false);
-        maxFormantSpread = VoiceChangeSettings.maxFormantSpread.get().orElse(0.0f);
-        badSThreshold = VoiceChangeSettings.badSThreshold.get().orElse(4500);
-        badShMinThreshold = VoiceChangeSettings.badShMinThreshold.get().orElse(2000);
-        badShMaxThreshold = VoiceChangeSettings.badShMaxThreshold.get().orElse(4500);
-        badSCutoff = VoiceChangeSettings.badSCutoff.get().orElse(0);
-        badShCutoff = VoiceChangeSettings.badShCutoff.get().orElse(0);
-        useOldWindowRestore = VoiceChangeSettings.useOldWindowRestore.get().orElse(true);
+        VoicePreset activePreset = VoiceChangeSettings.getActivePreset();
+        boolean presetActive = activePreset != null && activePreset != VoicePreset.NONE;
+        if (presetActive) {
+            aggressiveChangeLevel = true;
+            spectrumDistortionParams = "";
+            f0Shift = activePreset.getF0Shift();
+            lowRatio = activePreset.getLowRatio();
+            midRatio = activePreset.getMidRatio();
+            highRatio = activePreset.getHighRatio();
+            formantShiftingHarvest = false;
+            maxFormantSpread = 0.05f;
+            badSThreshold = VoiceChangeSettings.badSThreshold.get().orElse(4500);
+            badShMinThreshold = VoiceChangeSettings.badShMinThreshold.get().orElse(2000);
+            badShMaxThreshold = VoiceChangeSettings.badShMaxThreshold.get().orElse(4500);
+            badSCutoff = 0;
+            badShCutoff = 0;
+            useOldWindowRestore = true;
+        } else {
+            aggressiveChangeLevel = VoiceChangeSettings.aggressiveChangeLevel.get().orElse(false);
+            spectrumDistortionParams = VoiceChangeSettings.spectrumDistortionParams.get().orElse("");
+            f0Shift = VoiceChangeSettings.f0Shift.get().orElse(1.0f);
+            lowRatio = VoiceChangeSettings.lowRatio.get().orElse(1.0f);
+            midRatio = VoiceChangeSettings.midRatio.get().orElse(1.0f);
+            highRatio = VoiceChangeSettings.highRatio.get().orElse(1.0f);
+            formantShiftingHarvest = VoiceChangeSettings.formantShiftingHarvest.get().orElse(false);
+            maxFormantSpread = VoiceChangeSettings.maxFormantSpread.get().orElse(0.0f);
+            badSThreshold = VoiceChangeSettings.badSThreshold.get().orElse(4500);
+            badShMinThreshold = VoiceChangeSettings.badShMinThreshold.get().orElse(2000);
+            badShMaxThreshold = VoiceChangeSettings.badShMaxThreshold.get().orElse(4500);
+            badSCutoff = VoiceChangeSettings.badSCutoff.get().orElse(0);
+            badShCutoff = VoiceChangeSettings.badShCutoff.get().orElse(0);
+            useOldWindowRestore = VoiceChangeSettings.useOldWindowRestore.get().orElse(true);
+        }
     }
 
     @Override

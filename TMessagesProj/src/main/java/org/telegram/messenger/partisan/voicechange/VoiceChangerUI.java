@@ -41,6 +41,64 @@ public class VoiceChangerUI {
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), AndroidUtilities.dp(8));
 
+        // Holders so preset buttons and the pitch slider can reference each other
+        // regardless of declaration order (Java lambdas capture effectively-final locals).
+        final SeekBarView[] seekBarHolder = new SeekBarView[1];
+        final TextView[] pitchValueHolder = new TextView[1];
+        final TextView[][] presetButtonsHolder = new TextView[1][];
+
+        // ---- Voice preset picker ----
+        TextView presetLabel = new TextView(activity);
+        presetLabel.setTextColor(textColor);
+        presetLabel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        presetLabel.setText("Voice preset");
+        container.addView(presetLabel);
+
+        LinearLayout presetRow = new LinearLayout(activity);
+        presetRow.setOrientation(LinearLayout.HORIZONTAL);
+        presetRow.setGravity(Gravity.CENTER_VERTICAL);
+        container.addView(presetRow);
+
+        final TextView[] presetButtons = new TextView[VoicePreset.values().length];
+        presetButtonsHolder[0] = presetButtons;
+        for (int i = 0; i < VoicePreset.values().length; i++) {
+            final VoicePreset preset = VoicePreset.values()[i];
+            TextView button = new TextView(activity);
+            button.setText(preset.getDisplayName());
+            button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            button.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(6), AndroidUtilities.dp(10), AndroidUtilities.dp(6));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (i > 0) {
+                lp.leftMargin = AndroidUtilities.dp(6);
+            }
+            button.setLayoutParams(lp);
+            button.setGravity(Gravity.CENTER);
+            button.setClickable(true);
+            button.setFocusable(true);
+            button.setOnClickListener(v -> {
+                VoiceChangeSettings.setActivePreset(preset);
+                if (preset != VoicePreset.NONE) {
+                    VoiceChangeSettings.voiceChangeEnabled.set(true);
+                    // Mirror the preset pitch into the manual slider so the UI stays consistent
+                    if (seekBarHolder[0] != null) {
+                        seekBarHolder[0].setProgress(Math.max(0f, Math.min(1f, (float) (preset.getF0Shift() - 0.5f) / 1.5f)), true);
+                    }
+                    if (pitchValueHolder[0] != null) {
+                        pitchValueHolder[0].setText(String.format(java.util.Locale.US, "%.2fx — higher = deeper voice", preset.getF0Shift()));
+                    }
+                } else {
+                    VoiceChangeSettings.spectrumDistortionParams.set("");
+                }
+                updatePresetButtonColors(presetButtons, preset, activity, resourcesProvider);
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            });
+            presetButtons[i] = button;
+            presetRow.addView(button);
+        }
+        updatePresetButtonColors(presetButtons, VoiceChangeSettings.getActivePreset(), activity, resourcesProvider);
+
         // ---- Per-chat switch ----
         Switch perChatSwitch = new Switch(activity, resourcesProvider);
         perChatSwitch.setChecked(VoiceChangerUtils.isVoiceChangeEnabledForDialog(dialogId), false);
@@ -79,6 +137,11 @@ public class VoiceChangerUI {
         pitchSeekBar.setDelegate(new SeekBarView.SeekBarViewDelegate() {
             @Override
             public void onSeekBarDrag(boolean stop, float progress) {
+                // Manual pitch adjustment overrides any preset
+                VoiceChangeSettings.setActivePreset(VoicePreset.NONE);
+                if (presetButtonsHolder[0] != null) {
+                    updatePresetButtonColors(presetButtonsHolder[0], VoicePreset.NONE, activity, resourcesProvider);
+                }
                 float shift = 0.5f + progress * 1.5f;
                 VoiceChangeSettings.f0Shift.set(shift);
                 VoiceChangeSettings.lowRatio.set(shift);
@@ -96,6 +159,10 @@ public class VoiceChangerUI {
         LinearLayout.LayoutParams pitchValueLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         container.addView(pitchValue, pitchValueLp);
 
+        // Wire the holders now that all views exist
+        seekBarHolder[0] = pitchSeekBar;
+        pitchValueHolder[0] = pitchValue;
+
         // ---- Randomize button ----
         TextView randomizeButton = new TextView(activity);
         randomizeButton.setText("🎲 Randomize voice settings");
@@ -104,6 +171,11 @@ public class VoiceChangerUI {
         randomizeButton.setGravity(Gravity.CENTER);
         randomizeButton.setPadding(0, AndroidUtilities.dp(12), 0, AndroidUtilities.dp(8));
         randomizeButton.setOnClickListener(v -> {
+            // Randomize overrides any preset
+            VoiceChangeSettings.setActivePreset(VoicePreset.NONE);
+            if (presetButtonsHolder[0] != null) {
+                updatePresetButtonColors(presetButtonsHolder[0], VoicePreset.NONE, activity, resourcesProvider);
+            }
             new VoiceChangeSettingsGenerator().generateParameters(true);
             float shift = VoiceChangeSettings.f0Shift.get().orElse(1.0f);
             pitchSeekBar.setProgress(Math.max(0f, Math.min(1f, (shift - 0.5f) / 1.5f)), true);
@@ -129,6 +201,22 @@ public class VoiceChangerUI {
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.show();
+    }
+
+    private static void updatePresetButtonColors(TextView[] buttons, VoicePreset active, Activity activity, Theme.ResourcesProvider resourcesProvider) {
+        if (buttons == null) {
+            return;
+        }
+        int selectedBg = Theme.getColor(Theme.key_dialogTextBlue2, resourcesProvider);
+        int normalBg = Theme.getColor(Theme.key_dialogBackground, resourcesProvider);
+        int selectedFg = Theme.getColor(Theme.key_dialogBackground, resourcesProvider);
+        int normalFg = Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider);
+        VoicePreset[] values = VoicePreset.values();
+        for (int i = 0; i < buttons.length && i < values.length; i++) {
+            boolean isActive = active != null && values[i] == active;
+            buttons[i].setBackgroundColor(isActive ? selectedBg : normalBg);
+            buttons[i].setTextColor(isActive ? selectedFg : normalFg);
+        }
     }
 
     private static View makeSwitchRow(Activity activity, Theme.ResourcesProvider resourcesProvider, String title, String subtitle, Switch switchView, int textColor, int grayColor) {

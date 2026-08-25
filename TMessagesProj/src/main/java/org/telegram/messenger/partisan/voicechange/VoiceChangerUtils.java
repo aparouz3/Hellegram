@@ -92,6 +92,10 @@ public class VoiceChangerUtils {
     }
 
     private static boolean anyParameterSet() {
+        VoicePreset activePreset = VoiceChangeSettings.getActivePreset();
+        if (activePreset != null && activePreset != VoicePreset.NONE) {
+            return true;
+        }
         ParametersProvider parametersProvider = new CachedVoiceChangerSettingsParametersProvider();
         return parametersProvider.spectrumDistortionEnabled()
                 || parametersProvider.formantShiftingEnabled()
