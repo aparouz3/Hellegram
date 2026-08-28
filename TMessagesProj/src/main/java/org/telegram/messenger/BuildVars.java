@@ -18,9 +18,9 @@ import java.util.Objects;
 
 public class BuildVars {
 
-    public static boolean DEBUG_VERSION = BuildConfig.DEBUG_VERSION;
-    public static boolean LOGS_ENABLED = BuildConfig.DEBUG_VERSION;
-    public static boolean DEBUG_PRIVATE_VERSION = BuildConfig.DEBUG_PRIVATE_VERSION;
+    public static boolean DEBUG_VERSION = false;
+    public static boolean LOGS_ENABLED = false;
+    public static boolean DEBUG_PRIVATE_VERSION = false;
     public static boolean USE_CLOUD_STRINGS = true;
     public static boolean CHECK_UPDATES = true;
     public static boolean NO_SCOPED_STORAGE = Build.VERSION.SDK_INT <= 29;
@@ -45,17 +45,7 @@ public class BuildVars {
 
     static {
         if (ApplicationLoader.applicationContext != null) {
-            SharedPreferences sharedPreferences = ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", Context.MODE_PRIVATE);
-            LOGS_ENABLED = DEBUG_VERSION || sharedPreferences.getBoolean("logsEnabled", DEBUG_VERSION);
-            if (LOGS_ENABLED) {
-                final Thread.UncaughtExceptionHandler pastHandler = Thread.getDefaultUncaughtExceptionHandler();
-                Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-                    FileLog.fatal(exception, false);
-                    if (pastHandler != null) {
-                        pastHandler.uncaughtException(thread, exception);
-                    }
-                });
-            }
+            LOGS_ENABLED = false;
         }
     }
 

@@ -1994,7 +1994,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     LocaleController.getString(R.string.DebugSendLogs)
                 }, (di, b) -> {
                     if (b == 0) {
-                        BuildVars.LOGS_ENABLED = !BuildVars.LOGS_ENABLED;
+                        BuildVars.LOGS_ENABLED = false;
                         ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", Context.MODE_PRIVATE).edit().putBoolean("logsEnabled", BuildVars.LOGS_ENABLED).commit();
                         BulletinFactory.of(LoginActivity.this).createSimpleBulletin(R.raw.chats_infotip, BuildVars.LOGS_ENABLED ? "Logs enabled." : "Logs disabled.").show();
                         if (BuildVars.LOGS_ENABLED) {

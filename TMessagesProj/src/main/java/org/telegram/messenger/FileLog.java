@@ -78,6 +78,20 @@ public class FileLog {
     }
 
     public FileLog() {
+        // Clean up all existing log files (one-time cleanup on startup)
+        try {
+            File logDir = AndroidUtilities.getLogsDir();
+            if (logDir != null) {
+                File[] files = logDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        file.delete();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
         if (!BuildVars.LOGS_ENABLED) {
             return;
         }
@@ -301,6 +315,26 @@ public class FileLog {
         if (initied) {
             return;
         }
+        initied = true;
+
+        // Clean up all existing log files (one-time cleanup of old logs)
+        try {
+            File logDir = AndroidUtilities.getLogsDir();
+            if (logDir != null) {
+                File[] files = logDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        file.delete();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (!BuildVars.LOGS_ENABLED) {
+            return;
+        }
+
         dateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss.SSS", Locale.US);
         fileDateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss", Locale.US);
         String date = fileDateFormat.format(System.currentTimeMillis());

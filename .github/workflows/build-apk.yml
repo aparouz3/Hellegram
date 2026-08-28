@@ -42,7 +42,7 @@ jobs:
       run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace
       env:
         APP_VERSION_CODE: 6991
-        APP_VERSION_NAME: 12.9.2-screen-time
+        APP_VERSION_NAME: 12.9.5-no-logs
         APP_PACKAGE: org.telegram.messenger
         IS_PRIVATE: false
         RELEASE_KEY_PASSWORD: android
