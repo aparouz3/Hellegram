@@ -316,57 +316,7 @@ public class FileLog {
             return;
         }
         initied = true;
-
-        // Clean up all existing log files (one-time cleanup of old logs)
-        try {
-            File logDir = AndroidUtilities.getLogsDir();
-            if (logDir != null) {
-                File[] files = logDir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        file.delete();
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        if (!BuildVars.LOGS_ENABLED) {
-            return;
-        }
-
-        dateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss.SSS", Locale.US);
-        fileDateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss", Locale.US);
-        String date = fileDateFormat.format(System.currentTimeMillis());
-        try {
-            File dir = AndroidUtilities.getLogsDir();
-            if (dir == null) {
-                return;
-            }
-            currentFile = new File(dir, date + ".txt");
-            tlRequestsFile = new File(dir, date + "_mtproto.txt");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        try {
-            logQueue = new DispatchQueue("logQueue");
-            currentFile.createNewFile();
-            FileOutputStream stream = new FileOutputStream(currentFile);
-            streamWriter = new OutputStreamWriter(stream);
-            streamWriter.write("-----start log " + date + "-----\n");
-            streamWriter.flush();
-
-            FileOutputStream tlStream = new FileOutputStream(tlRequestsFile);
-            tlStreamWriter = new OutputStreamWriter(tlStream);
-            tlStreamWriter.write("-----start log " + date + "-----\n");
-            tlStreamWriter.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if (BuildVars.DEBUG_VERSION) {
-            new ANRDetector(this::dumpANR);
-        }
-        initied = true;
+        // === HELLEGRAM: file logging completely removed — never create log files. ===
     }
 
     public static void ensureInitied() {
@@ -508,13 +458,7 @@ public class FileLog {
 
     private static long dumpedHeap;
     public void dumpMemory(boolean force) {
-        if (!force && System.currentTimeMillis() - dumpedHeap < 30_000) return;
-        dumpedHeap = System.currentTimeMillis();
-        try {
-            Debug.dumpHprofData(new File(AndroidUtilities.getLogsDir(), getInstance().dateFormat.format(System.currentTimeMillis()) + "_heap.hprof").getAbsolutePath());
-        } catch (Exception e2) {
-            FileLog.e(e2);
-        }
+        // === HELLEGRAM: heap dumps disabled — no .hprof files. ===
     }
 
     private void dumpANR() {

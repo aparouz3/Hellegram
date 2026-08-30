@@ -159,8 +159,8 @@ public class VoIPController {
 		nativeSetConfig(nativeInst, recvTimeout, initTimeout, dataSavingOption,
 				!(sysAecAvailable && VoIPServerConfig.getBoolean("use_system_aec", true)),
 				!(sysNsAvailable && VoIPServerConfig.getBoolean("use_system_ns", true)),
-				true, BuildVars.DEBUG_VERSION ? getLogFilePath("voip" + callID) : getLogFilePath(callID), BuildVars.DEBUG_VERSION && dump ? getLogFilePath("voipStats") : null,
-				BuildVars.DEBUG_VERSION);
+				true, "", null,
+				false);
 	}
 
 	public void debugCtl(int request, int param) {

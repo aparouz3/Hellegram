@@ -2916,7 +2916,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				logId = "0";
 			}
 			final boolean[] first = new boolean[] { isFirst };
-			final String logFilePath = BuildVars.DEBUG_VERSION ? VoIPHelper.getLogFilePath("voip_" + type + "_" + logId) : VoIPHelper.getLogFilePath(logId, false);
+			final String logFilePath = "";
 			tgVoip[type] = NativeInstance.makeGroup(logFilePath, captureDevice[type], type == CAPTURE_DEVICE_SCREEN, type == CAPTURE_DEVICE_CAMERA && SharedConfig.noiseSupression, (ssrc, json) -> {
 				if (type == CAPTURE_DEVICE_CAMERA) {
 					if (conference != null) {
@@ -3415,8 +3415,8 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			final Instance.ServerConfig serverConfig = Instance.getGlobalServerConfig();
 			final boolean enableAec = !(sysAecAvailable && serverConfig.useSystemAec);
 			final boolean enableNs = !(sysNsAvailable && serverConfig.useSystemNs);
-			final String logFilePath = BuildVars.DEBUG_VERSION ? VoIPHelper.getLogFilePath("voip" + privateCall.id) : VoIPHelper.getLogFilePath("" + privateCall.id, false);
-			final String statsLogFilePath = VoIPHelper.getLogFilePath("" + privateCall.id, true);
+			final String logFilePath = "";
+			final String statsLogFilePath = "";
 			final Instance.Config config = new Instance.Config(initializationTimeout, receiveTimeout, voipDataSaving, privateCall.p2p_allowed, enableAec, enableNs, true, false, serverConfig.enableStunMarking, logFilePath, statsLogFilePath, privateCall.protocol.max_layer, privateCall.custom_parameters == null ? "" : privateCall.custom_parameters.data);
 			lastLogFilePath = logFilePath;
 

@@ -227,7 +227,7 @@ public class LivePlayer implements NotificationCenter.NotificationCenterDelegate
         if (destroyed) return;
 
         instance = NativeInstance.makeGroup(
-                VoIPHelper.getLogFilePath("live_" + inputCall.id),
+                "",
                 0,
                 false,
                 SharedConfig.noiseSupression,
