@@ -41,10 +41,29 @@ public class ScreenTimeTracker {
     }
     private LimitReachedListener limitListener;
 
+    public static boolean antiDeleteEnabled = false; // === ANTI_DELETE === (persisted in timerPrefs below)
+
     private ScreenTimeTracker() {
         prefs = ApplicationLoader.applicationContext.getSharedPreferences("screentime", Context.MODE_PRIVATE);
         limitPrefs = ApplicationLoader.applicationContext.getSharedPreferences("screentime_limits", Context.MODE_PRIVATE);
         timerPrefs = ApplicationLoader.applicationContext.getSharedPreferences("screentime_timer", Context.MODE_PRIVATE);
+        antiDeleteEnabled = timerPrefs.getBoolean("anti_delete_enabled", false);
+    }
+
+    // ===== Anti-Delete =====
+
+    public boolean isAntiDeleteEnabled() {
+        return antiDeleteEnabled;
+    }
+
+    public void setAntiDeleteEnabled(boolean enabled) {
+        antiDeleteEnabled = enabled;
+        timerPrefs.edit().putBoolean("anti_delete_enabled", enabled).apply();
+    }
+
+    public boolean toggleAntiDelete() {
+        setAntiDeleteEnabled(!antiDeleteEnabled);
+        return antiDeleteEnabled;
     }
 
     public static synchronized ScreenTimeTracker getInstance() {
@@ -343,6 +362,33 @@ public class ScreenTimeTracker {
         alreadyAlerted.remove(dialogId);
     }
 
+    // ===== Message counts (per chat, per day) =====
+
+    private String msgCountKey(long dialogId) {
+        return todayKey() + "_msgcount_" + dialogId;
+    }
+
+    public int getMessageCountToday(long dialogId) {
+        return prefs.getInt(msgCountKey(dialogId), 0);
+    }
+
+    public int getMessageCountTodayTotal() {
+        String prefix = todayKey() + "_msgcount_";
+        int total = 0;
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(prefix)) {
+                total += prefs.getInt(key, 0);
+            }
+        }
+        return total;
+    }
+
+    public void incrementMessageCount(long dialogId) {
+        if (dialogId == 0) return;
+        String key = msgCountKey(dialogId);
+        prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply();
+    }
+
     // ===== Data queries =====
 
     public long getChatTimeToday(long dialogId) {
@@ -355,7 +401,7 @@ public class ScreenTimeTracker {
         flushOther();
         long total = 0;
         for (String key : prefs.getAll().keySet()) {
-            if (key.startsWith(todayKey() + "_") && !key.contains("_hour") && !key.contains("_h")) {
+            if (key.startsWith(todayKey() + "_") && !key.contains("_hour") && !key.contains("_h") && !key.contains("_msgcount_")) {
                 total += prefs.getLong(key, 0);
             }
         }
@@ -368,7 +414,7 @@ public class ScreenTimeTracker {
         String prefix = todayKey() + "_";
         List<long[]> list = new ArrayList<>();
         for (String key : prefs.getAll().keySet()) {
-            if (key.startsWith(prefix) && !key.contains("_hour") && !key.contains("_h")) {
+            if (key.startsWith(prefix) && !key.contains("_hour") && !key.contains("_h") && !key.contains("_msgcount_")) {
                 try {
                     long did = Long.parseLong(key.substring(prefix.length()));
                     long ms = prefs.getLong(key, 0);
@@ -376,6 +422,66 @@ public class ScreenTimeTracker {
                         list.add(new long[]{did, ms});
                     }
                 } catch (NumberFormatException ignored) {}
+            }
+        }
+        list.sort((a, b) -> Long.compare(b[1], a[1]));
+        return list;
+    }
+
+    // ===== Weekly report (last 7 days including today) =====
+
+    private java.util.Set<String> lastWeekDayKeys() {
+        java.util.Set<String> keys = new HashSet<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd", Locale.US);
+        long now = System.currentTimeMillis();
+        for (int d = 0; d < 7; d++) {
+            keys.add(sdf.format(new Date(now - d * 86400000L)));
+        }
+        return keys;
+    }
+
+    public long getWeekTotal(long dialogId) {
+        java.util.Set<String> days = lastWeekDayKeys();
+        long total = 0;
+        for (String day : days) {
+            total += prefs.getLong(day + "_" + dialogId, 0);
+        }
+        return total;
+    }
+
+    public long getWeekTotalAll() {
+        java.util.Set<String> days = lastWeekDayKeys();
+        long total = 0;
+        for (String key : prefs.getAll().keySet()) {
+            if (key.contains("_hour") || key.contains("_h") || key.contains("_other") || key.contains("_msgcount_")) continue;
+            if (key.length() < 8) continue;
+            String datePart = key.substring(0, 8);
+            if (days.contains(datePart)) {
+                total += prefs.getLong(key, 0);
+            }
+        }
+        return total;
+    }
+
+    public List<long[]> getWeekPerChat() {
+        java.util.Set<String> days = lastWeekDayKeys();
+        java.util.Map<Long, Long> totals = new java.util.HashMap<>();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.contains("_hour") || key.contains("_h") || key.contains("_other") || key.contains("_msgcount_")) continue;
+            if (key.length() < 8) continue;
+            String datePart = key.substring(0, 8);
+            if (!days.contains(datePart)) continue;
+            String rest = key.substring(8);
+            if (rest.startsWith("_")) rest = rest.substring(1);
+            try {
+                long did = Long.parseLong(rest);
+                totals.put(did, totals.getOrDefault(did, 0L) + prefs.getLong(key, 0));
+            } catch (NumberFormatException ignored) {}
+        }
+        List<long[]> list = new ArrayList<>();
+        for (java.util.Map.Entry<Long, Long> e : totals.entrySet()) {
+            if (e.getValue() > 0) {
+                list.add(new long[]{e.getKey(), e.getValue()});
             }
         }
         list.sort((a, b) -> Long.compare(b[1], a[1]));
