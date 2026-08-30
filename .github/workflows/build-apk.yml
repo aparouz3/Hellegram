@@ -49,9 +49,12 @@ jobs:
         RELEASE_KEY_ALIAS: androidkey
         RELEASE_STORE_PASSWORD: android
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: Telegram-ScreenTime-APK
-        path: TMessagesProj_App/build/outputs/apk/afat/debug/*.apk
-        retention-days: 30
+    - name: Publish Release (latest-build)
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release delete latest-build --yes --cleanup-tag 2>/dev/null || true
+        cp TMessagesProj_App/build/outputs/apk/afat/debug/*.apk /tmp/Hellegram-APK.apk
+        gh release create latest-build /tmp/Hellegram-APK.apk \
+          --title "Hellegram — جدیدترین بیلد" \
+          --notes "Build from commit \`${{ github.sha }}\`"
