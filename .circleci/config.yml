@@ -1,0 +1,51 @@
+version: 2.1
+
+orbs:
+  android: circleci/android@2.0
+
+executors:
+  android-executor:
+    resource_class: 2xlarge
+    docker:
+      - image: cimg/android:2024.09
+        environment:
+          GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3072M -Dorg.gradle.workers.max=1'
+          CMAKE_BUILD_PARALLEL_LEVEL: '1'
+
+jobs:
+  build:
+    executor: android-executor
+    steps:
+      - checkout
+      - run:
+          name: Install Android SDK components
+          command: |
+            yes | sdkmanager --licenses > /dev/null || true
+            sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1" > /dev/null
+      - run:
+          name: Grant execute permission for gradlew
+          command: chmod +x ./gradlew
+      - run:
+          name: Build Debug APK
+          command: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=1
+          environment:
+            APP_VERSION_CODE: '6991'
+            APP_VERSION_NAME: '12.9.5-no-logs'
+            APP_PACKAGE: 'org.telegram.messenger'
+            IS_PRIVATE: 'false'
+            RELEASE_KEY_PASSWORD: 'android'
+            RELEASE_KEY_ALIAS: 'androidkey'
+            RELEASE_STORE_PASSWORD: 'android'
+      - run:
+          name: Collect APK
+          command: |
+            mkdir -p /tmp/apk-output
+            cp TMessagesProj_App/build/outputs/apk/afat/debug/*.apk /tmp/apk-output/ || true
+      - store_artifacts:
+          path: /tmp/apk-output
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
