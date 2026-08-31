@@ -5,7 +5,7 @@ orbs:
 
 executors:
   android-executor:
-    resource_class: 2xlarge
+    resource_class: large
     docker:
       - image: cimg/android:2024.09
         environment:
