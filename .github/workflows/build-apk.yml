@@ -41,6 +41,18 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
+    - name: Free up runner memory
+      run: |
+        # Stop heavy background services that ship with the runner image
+        sudo systemctl stop "docker*" "containerd*" 2>/dev/null || true
+        sudo pkill -f "dockerd" 2>/dev/null || true
+        sudo pkill -f "containerd" 2>/dev/null || true
+        sudo apt-get clean 2>/dev/null || true
+        sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/go /usr/local/lib/android/sdk/.temp 2>/dev/null || true
+        sync
+        sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
+        free -h
+
     - name: Build Debug APK
       run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=1
       env:
