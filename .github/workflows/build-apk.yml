@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 150
 
     steps:
     - name: Checkout
@@ -42,7 +42,7 @@ jobs:
       run: chmod +x ./gradlew
 
     - name: Build Debug APK
-      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace
+      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=2
       env:
         APP_VERSION_CODE: 6991
         APP_VERSION_NAME: 12.9.5-no-logs
