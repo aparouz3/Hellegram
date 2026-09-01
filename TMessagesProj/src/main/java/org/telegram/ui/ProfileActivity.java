@@ -4317,8 +4317,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     // Already on -> just turn off
                     stAd.toggleAntiDelete();
                     updateListAnimated(false);
-                } else {
-                    new androidx.appcompat.app.AlertDialog.Builder(ProfileActivity.this)
+                } else if (getParentActivity() != null) {
+                    new androidx.appcompat.app.AlertDialog.Builder(getParentActivity())
                             .setTitle("Enable Anti-Delete?")
                             .setMessage("When enabled, messages deleted by the other person stay visible in this chat.")
                             .setPositiveButton("Enable", (d, w) -> {
