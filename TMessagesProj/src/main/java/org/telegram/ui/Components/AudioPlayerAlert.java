@@ -2377,8 +2377,8 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
 
         String artist = messageObject.getMusicAuthor();
         String duration = "";
-        if (messageObject.getDocument() != null && messageObject.getDocument().duration > 0) {
-            int sec = messageObject.getDocument().duration;
+        if (messageObject.getDuration() > 0) {
+            int sec = (int) messageObject.getDuration();
             duration = String.format(java.util.Locale.US, "%d:%02d", sec / 60, sec % 60);
         }
         String subtitle;
