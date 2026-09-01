@@ -652,7 +652,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int userInfoRow;
     private int channelInfoRow;
     private int usernameRow;
-    private int screenTimeRow; // === SCREEN_TIME_FEATURE === (field)
     private int forwardSensitivityRow; // === FORWARD_SENSITIVITY === (field)
     private int voiceChangerRow; // === VOICE_CHANGER === (field)
     private int antiDeleteRow; // === ANTI_DELETE === (field)
@@ -4312,9 +4311,23 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 org.telegram.messenger.partisan.voicechange.VoiceChangerUI.showSettingsDialog(ProfileActivity.this, getDialogId(), () -> updateListAnimated(false));
                 // === VOICE_CHANGER END ===
             } else if (position == antiDeleteRow) {
-                // === ANTI_DELETE START === (toggle anti-delete from profile)
-                org.telegram.messenger.ScreenTimeTracker.getInstance().toggleAntiDelete();
-                updateListAnimated(false);
+                // === ANTI_DELETE START === (toggle anti-delete from profile, ask before enabling)
+                org.telegram.messenger.ScreenTimeTracker stAd = org.telegram.messenger.ScreenTimeTracker.getInstance();
+                if (stAd.isAntiDeleteEnabled()) {
+                    // Already on -> just turn off
+                    stAd.toggleAntiDelete();
+                    updateListAnimated(false);
+                } else {
+                    new androidx.appcompat.app.AlertDialog.Builder(ProfileActivity.this)
+                            .setTitle("Enable Anti-Delete?")
+                            .setMessage("When enabled, messages deleted by the other person stay visible in this chat.")
+                            .setPositiveButton("Enable", (d, w) -> {
+                                stAd.toggleAntiDelete();
+                                updateListAnimated(false);
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                }
                 // === ANTI_DELETE END ===
             } else if (position == affiliateRow) {
                 TLRPC.User user = getMessagesController().getUser(userId);
@@ -10530,7 +10543,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         locationRow = -1;
         channelInfoRow = -1;
         usernameRow = -1;
-        screenTimeRow = -1; // === SCREEN_TIME_FEATURE === (row index init)
         forwardSensitivityRow = -1; // === FORWARD_SENSITIVITY === (row index init)
         voiceChangerRow = -1; // === VOICE_CHANGER === (row index init)
         antiDeleteRow = -1; // === ANTI_DELETE === (row index init)
@@ -10727,7 +10739,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
-                screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (user profile row)
                 chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row ===
                 forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (user profile row)
                 voiceChangerRow = rowCount++; // === VOICE_CHANGER === (user profile row)
@@ -10892,7 +10903,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
             }
             // === HELLEGRAM ROWS === (always shown for chats/groups, not only when chat has about/location/isPublic)
-            screenTimeRow = rowCount++; // === SCREEN_TIME_FEATURE === (chat profile row)
             chatIdRow = rowCount++; // === HELLEGRAM: user/chat ID row (chat profile) ===
             forwardSensitivityRow = rowCount++; // === FORWARD_SENSITIVITY === (chat profile row)
             voiceChangerRow = rowCount++; // === VOICE_CHANGER === (chat profile row)
@@ -13650,21 +13660,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         detailCell.setTextAndValue(text, value, true);
                         detailCell.setContentDescriptionValueFirst(true);
-                    } else if (position == screenTimeRow) {
-                        // === SCREEN_TIME_FEATURE START === (bind screen time value in profile)
-                        long dialogId = getDialogId();
-                        org.telegram.messenger.ScreenTimeTracker st = org.telegram.messenger.ScreenTimeTracker.getInstance();
-                        long todayMs = st.getChatTimeToday(dialogId);
-                        long weekMs = st.getWeekTotal(dialogId);
-                        int msgs = st.getMessageCountToday(dialogId);
-                        String timeStr = org.telegram.messenger.ScreenTimeTracker.formatDuration(todayMs);
-                        String weekStr = org.telegram.messenger.ScreenTimeTracker.formatDuration(weekMs);
-                        detailCell.setTextAndValue(
-                                timeStr + "  ·  هفته " + weekStr + (msgs > 0 ? "  ·  " + msgs + " پیام" : ""),
-                                "Screen time today",
-                                false);
-                        detailCell.setOnClickListener(v -> showScreenTimeWeekDialog(dialogId));
-                        // === SCREEN_TIME_FEATURE END ===
                     } else if (position == forwardSensitivityRow) {
                         // === FORWARD_SENSITIVITY START === (bind forwarding sensitivity value in profile)
                         detailCell.setTextAndValue(org.telegram.messenger.ForwardSensitivity.getModeName(getDialogId()), "Forwarding sensitivity", false);
@@ -13676,7 +13671,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (position == antiDeleteRow) {
                         // === ANTI_DELETE START === (bind anti-delete toggle in profile)
                         detailCell.setTextAndValue(
-                                org.telegram.messenger.ScreenTimeTracker.antiDeleteEnabled ? "فعال" : "غیرفعال",
+                                org.telegram.messenger.ScreenTimeTracker.antiDeleteEnabled ? "On" : "Off",
                                 "Anti-Delete",
                                 false);
                         // === ANTI_DELETE END ===
@@ -14371,7 +14366,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == chatIdRow || position == screenTimeRow || position == forwardSensitivityRow || position == voiceChangerRow || position == antiDeleteRow /* === SCREEN_TIME_FEATURE === === FORWARD_SENSITIVITY === === VOICE_CHANGER === === ANTI_DELETE === */) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == chatIdRow || position == forwardSensitivityRow || position == voiceChangerRow || position == antiDeleteRow /* === FORWARD_SENSITIVITY === === VOICE_CHANGER === === ANTI_DELETE === */) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
@@ -15480,38 +15475,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     public void updateListAnimated(boolean updateOnlineCount) {
         updateListAnimated(updateOnlineCount, false);
-    }
-
-    private void showScreenTimeWeekDialog(long dialogId) {
-        // === SCREEN_TIME_FEATURE START === (weekly screen time breakdown dialog)
-        if (getParentActivity() == null) {
-            return;
-        }
-        org.telegram.messenger.ScreenTimeTracker st = org.telegram.messenger.ScreenTimeTracker.getInstance();
-        StringBuilder sb = new StringBuilder();
-        long weekAll = st.getWeekTotalAll();
-        long weekThis = st.getWeekTotal(dialogId);
-        sb.append("کل این هفته: ").append(org.telegram.messenger.ScreenTimeTracker.formatDuration(weekAll)).append("\n");
-        sb.append("این گفتگو این هفته: ").append(org.telegram.messenger.ScreenTimeTracker.formatDuration(weekThis)).append("\n\n");
-        sb.append("پربازدیدترین گفتگوهای این هفته:\n");
-        java.util.List<long[]> perChat = st.getWeekPerChat();
-        if (perChat.isEmpty()) {
-            sb.append("— دادهای نیست —");
-        } else {
-            int shown = 0;
-            for (long[] entry : perChat) {
-                if (shown >= 8) break;
-                String name = entry[0] == dialogId ? "این گفتگو" : org.telegram.messenger.MessagesController.getInstance(currentAccount).getPeerName(entry[0]);
-                sb.append("• ").append(name).append(": ").append(org.telegram.messenger.ScreenTimeTracker.formatDuration(entry[1])).append("\n");
-                shown++;
-            }
-        }
-        new androidx.appcompat.app.AlertDialog.Builder(getParentActivity())
-                .setTitle("گزارش هفتگی Screen Time")
-                .setMessage(sb.toString())
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
-        // === SCREEN_TIME_FEATURE END ===
     }
 
     private void updateListAnimated(boolean updateOnlineCount, boolean triedInLayout) {

@@ -18774,6 +18774,9 @@ public class MessagesController extends BaseController implements NotificationCe
                         deletedMessages.put(0, arrayList);
                     }
                     arrayList.addAll(update.messages);
+                } else {
+                    // === ANTI_DELETE === (held: sender deleted these, notify UI to label them)
+                    NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.antiDeleteHeldMessages, update.messages);
                 }
             } else if (baseUpdate instanceof TL_update.TL_updateDeleteQuickReplyMessages) {
                 TL_update.TL_updateDeleteQuickReplyMessages update = (TL_update.TL_updateDeleteQuickReplyMessages) baseUpdate;
@@ -19303,6 +19306,9 @@ public class MessagesController extends BaseController implements NotificationCe
                         deletedMessages.put(dialogId, arrayList);
                     }
                     arrayList.addAll(update.messages);
+                } else {
+                    // === ANTI_DELETE === (held: sender deleted these, notify UI to label them)
+                    NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.antiDeleteHeldMessages, update.messages);
                 }
             } else if (baseUpdate instanceof TL_update.TL_updateChannel) {
                 if (BuildVars.LOGS_ENABLED) {

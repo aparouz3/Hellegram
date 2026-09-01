@@ -222,6 +222,7 @@ public class MessageObject {
     public String monthKey;
     public boolean deleted;
     public boolean deletedByThanos;
+    public boolean antiDeleteHeld; // === ANTI_DELETE === (this message was deleted by sender but held visible)
     public float audioProgress;
     public float forceSeekTo = -1;
     public int audioProgressMs;

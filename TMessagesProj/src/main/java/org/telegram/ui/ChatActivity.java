@@ -2942,6 +2942,7 @@ public class ChatActivity extends BaseFragment implements
             .add(NotificationCenter.didLoadSendAsPeers)
             .add(NotificationCenter.closeChatActivity)
             .add(NotificationCenter.messagesDeleted)
+            .add(NotificationCenter.antiDeleteHeldMessages)
             .add(NotificationCenter.historyCleared)
             .add(NotificationCenter.messageReceivedByServer)
             .add(NotificationCenter.messageReceivedByAck)
@@ -20445,7 +20446,9 @@ public class ChatActivity extends BaseFragment implements
 
     @Override
     public void didReceivedNotification(int id, int account, final Object... args) {
-        if (id == NotificationCenter.messagesDidLoad) {
+        if (id == NotificationCenter.antiDeleteHeldMessages) {
+            handleAntiDeleteHeld(args);
+        } else if (id == NotificationCenter.messagesDidLoad) {
             didReceivedNotification_messagesDidLoad(id, account, args);
         } else {
             didReceivedNotification2(id, account, args);
@@ -20454,6 +20457,38 @@ public class ChatActivity extends BaseFragment implements
             didReceivedNotification5(id, account, args);
             didReceivedNotification6(id, account, args);
             didReceivedNotification7(id, account, args);
+        }
+    }
+
+    // === ANTI_DELETE === (mark messages that the sender deleted but we keep visible)
+    private void handleAntiDeleteHeld(Object... args) {
+        if (args.length == 0 || !(args[0] instanceof ArrayList)) return;
+        ArrayList<Integer> ids = (ArrayList<Integer>) args[0];
+        if (ids.isEmpty()) return;
+        boolean updated = false;
+        int size = ids.size();
+        for (int a = 0; a < size; a++) {
+            Integer mid = ids.get(a);
+            MessageObject obj = null;
+            if (chatAdapter != null && chatAdapter.isFiltered) {
+                if (filteredMessagesDict != null) {
+                    obj = filteredMessagesDict.get(mid);
+                }
+            } else {
+                for (int li = 0; li < messagesDict.length; li++) {
+                    if (messagesDict[li] != null) {
+                        obj = messagesDict[li].get(mid);
+                        if (obj != null) break;
+                    }
+                }
+            }
+            if (obj != null && !obj.antiDeleteHeld) {
+                obj.antiDeleteHeld = true;
+                updated = true;
+            }
+        }
+        if (updated && chatAdapter != null) {
+            chatAdapter.notifyDataSetChanged();
         }
     }
 

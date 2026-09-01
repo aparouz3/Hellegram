@@ -18438,6 +18438,16 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         } else {
             currentTimeString = timeString;
         }
+        // === ANTI_DELETE === (label messages the sender deleted but we keep visible)
+        if (currentMessageObject.antiDeleteHeld) {
+            String delStr = "This message was deleted by the sender";
+            android.text.SpannableStringBuilder delSsb = new android.text.SpannableStringBuilder(currentTimeString);
+            int delStart = delSsb.length();
+            delSsb.append("  ").append(delStr);
+            delSsb.setSpan(new android.text.style.ForegroundColorSpan(0xFFFF5252), delStart, delSsb.length(), 0);
+            delSsb.setSpan(new android.text.style.RelativeSizeSpan(0.85f), delStart, delSsb.length(), 0);
+            currentTimeString = delSsb;
+        }
         if (currentMessageObject.isStakedDice()) {
             currentTimeString = TextUtils.concat("💎", StarsIntroActivity.formatTON(currentMessageObject.getStakedDiceAmount()), "  ", currentTimeString);
             currentTimeString = StarsIntroActivity.replaceDiamond(currentTimeString, 0.55f, null, 0, dp(-.33f), 1.05f);
