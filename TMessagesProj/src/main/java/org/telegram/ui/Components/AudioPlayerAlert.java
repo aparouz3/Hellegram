@@ -140,6 +140,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
     private TextView playNextQueueBar;
+    private androidx.appcompat.app.AlertDialog playNextQueueDialog; // === QUEUE === (interactive queue dialog)
     private ListAdapter listAdapter;
     private LinearLayout emptyView;
     private ImageView emptyImageView;
@@ -2275,26 +2276,146 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
     }
 
     private void showPlayNextQueueDialog() {
-        ArrayList<MessageObject> queue = MediaController.getInstance().getPlayNextQueue();
+        final MediaController mediaController = MediaController.getInstance();
+        final ArrayList<MessageObject> queue = mediaController.getPlayNextQueue();
         if (queue.isEmpty()) {
             return;
         }
-        ArrayList<String> names = new ArrayList<>();
-        for (MessageObject m : queue) {
-            String title = m.getMusicTitle() != null ? m.getMusicTitle() : m.getFileName();
-            names.add(title != null ? title : "");
+        if (playNextQueueDialog != null && playNextQueueDialog.isShowing()) {
+            return;
         }
-        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(getContext())
-            .setTitle(LocaleController.getString(R.string.PlayNextQueue))
-            .setItems(names.toArray(new String[0]), null)
+        playNextQueueDialog = buildQueueDialog(getContext(), mediaController, queue);
+        playNextQueueDialog.show();
+    }
+
+    private void refreshPlayNextQueueDialog() {
+        if (playNextQueueDialog != null && playNextQueueDialog.isShowing()) {
+            playNextQueueDialog.dismiss();
+        }
+        playNextQueueDialog = null;
+        showPlayNextQueueDialog();
+    }
+
+    private androidx.appcompat.app.AlertDialog buildQueueDialog(Context ctx, MediaController mediaController, ArrayList<MessageObject> queue) {
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(ctx);
+        scrollView.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
+        LinearLayout list = new LinearLayout(ctx);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
+        scrollView.addView(list, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Header: "Queue (N)" + Clear all
+        LinearLayout header = new LinearLayout(ctx);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(20), dp(14), dp(10), dp(6));
+        TextView headerTitle = new TextView(ctx);
+        headerTitle.setText(LocaleController.getString(R.string.PlayNextQueue) + " (" + queue.size() + ")");
+        headerTitle.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        headerTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        headerTitle.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        headerTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(headerTitle);
+        TextView clearBtn = new TextView(ctx);
+        clearBtn.setText(LocaleController.getString(R.string.PlayNextQueueClear));
+        clearBtn.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlueText4));
+        clearBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        clearBtn.setPadding(dp(10), dp(6), dp(10), dp(6));
+        clearBtn.setOnClickListener(v -> {
+            mediaController.clearPlayNextQueue();
+            refreshPlayNextQueueDialog();
+        });
+        header.addView(clearBtn);
+        list.addView(header);
+
+        // Currently playing row (highlighted) — informational, not part of the "Play Next" queue
+        MessageObject current = mediaController.getPlayingMessageObject();
+        if (current != null && current.isMusic()) {
+            list.addView(buildQueueRow(ctx, current, true, null, null));
+        }
+
+        // Queue rows (tap = play now, ✕ = remove single item)
+        for (int i = 0; i < queue.size(); i++) {
+            final int index = i;
+            list.addView(buildQueueRow(ctx, queue.get(i), false,
+                () -> {
+                    mediaController.playFromPlayNextQueue(index);
+                    refreshPlayNextQueueDialog();
+                },
+                () -> {
+                    mediaController.removeFromPlayNextQueue(index);
+                    refreshPlayNextQueueDialog();
+                }));
+        }
+
+        return new androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setView(scrollView)
             .setNegativeButton(LocaleController.getString(R.string.Close), null)
-            .setNeutralButton(LocaleController.getString(R.string.PlayNextQueueClear), (dialog, which) -> {
-                MediaController.getInstance().clearPlayNextQueue();
-                BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
-                    .createSimpleBulletin(R.raw.ic_delete, getString(R.string.PlayNextQueueCleared))
-                    .show();
-            });
-        builder.show();
+            .create();
+    }
+
+    private View buildQueueRow(Context ctx, MessageObject messageObject, boolean isNowPlaying,
+                               Runnable playAction, Runnable removeAction) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(6), dp(8), dp(6));
+        row.setBackgroundColor(isNowPlaying ? getThemedColor(Theme.key_listSelector) : getThemedColor(Theme.key_dialogBackground));
+
+        LinearLayout textArea = new LinearLayout(ctx);
+        textArea.setOrientation(LinearLayout.VERTICAL);
+        textArea.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView title = new TextView(ctx);
+        String t = messageObject.getMusicTitle();
+        title.setText(t != null ? t : messageObject.getFileName());
+        title.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        textArea.addView(title);
+
+        String artist = messageObject.getMusicAuthor();
+        String duration = "";
+        if (messageObject.getDocument() != null && messageObject.getDocument().duration > 0) {
+            int sec = messageObject.getDocument().duration;
+            duration = String.format(java.util.Locale.US, "%d:%02d", sec / 60, sec % 60);
+        }
+        String subtitle;
+        if (isNowPlaying) {
+            subtitle = "Now playing  ·  " + (artist != null ? artist : "");
+        } else if (artist != null || !duration.isEmpty()) {
+            subtitle = (artist != null ? artist : "") + (artist != null && !duration.isEmpty() ? "  ·  " : "") + duration;
+        } else {
+            subtitle = "";
+        }
+        if (!TextUtils.isEmpty(subtitle)) {
+            TextView sub = new TextView(ctx);
+            sub.setText(subtitle);
+            sub.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
+            sub.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            sub.setSingleLine(true);
+            sub.setEllipsize(TextUtils.TruncateAt.END);
+            textArea.addView(sub);
+        }
+        row.addView(textArea);
+
+        if (!isNowPlaying && removeAction != null) {
+            TextView remove = new TextView(ctx);
+            remove.setText("✕");
+            remove.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
+            remove.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+            remove.setGravity(Gravity.CENTER);
+            remove.setPadding(dp(10), dp(10), dp(10), dp(10));
+            remove.setOnClickListener(v -> removeAction.run());
+            row.addView(remove);
+        }
+
+        if (!isNowPlaying && playAction != null) {
+            row.setOnClickListener(v -> playAction.run());
+        }
+
+        return row;
     }
 
     private void updateTitle(boolean shutdown) {

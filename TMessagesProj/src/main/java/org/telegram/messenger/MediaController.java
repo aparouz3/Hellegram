@@ -3007,17 +3007,48 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (messageObject.currentAccount < 0 || messageObject.currentAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
             messageObject.currentAccount = UserConfig.selectedAccount;
         }
-        // Remove any existing copy from the queue first (re-adding moves it to the end)
-        for (int i = playNextQueue.size() - 1; i >= 0; i--) {
-            MessageObject item = playNextQueue.get(i);
-            if (item != null && item.getId() == messageObject.getId()) {
-                playNextQueue.remove(i);
-            }
-        }
+        // Allow duplicates: the same song may be added to "Play Next" multiple times
         playNextQueue.add(messageObject);
 
         // Notify with a valid account instance (voice messages may have invalid account numbers)
         int notifyAccount = messageObject.currentAccount;
+        if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            notifyAccount = UserConfig.selectedAccount;
+        }
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
+    }
+
+    // === QUEUE === (remove a specific item from the Play Next queue)
+    public void removeFromPlayNextQueue(int index) {
+        if (index < 0 || index >= playNextQueue.size()) {
+            return;
+        }
+        playNextQueue.remove(index);
+        int notifyAccount = playingMessageObject != null ? playingMessageObject.currentAccount : UserConfig.selectedAccount;
+        if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            notifyAccount = UserConfig.selectedAccount;
+        }
+        NotificationCenter.getInstance(notifyAccount).postNotificationName(NotificationCenter.playNextQueueChanged);
+    }
+
+    // === QUEUE === (jump to a specific item: remove it from the queue and play it now)
+    public void playFromPlayNextQueue(int index) {
+        if (index < 0 || index >= playNextQueue.size()) {
+            return;
+        }
+        MessageObject item = playNextQueue.remove(index);
+        if (item == null) {
+            return;
+        }
+        if (item.currentAccount < 0 || item.currentAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
+            item.currentAccount = UserConfig.selectedAccount;
+        }
+        if (playingMessageObject != null) {
+            playingMessageObject.resetPlayingProgress();
+        }
+        playMusicAgain = true;
+        playMessage(item);
+        int notifyAccount = item.currentAccount;
         if (notifyAccount < 0 || notifyAccount >= UserConfig.MAX_ACCOUNT_COUNT) {
             notifyAccount = UserConfig.selectedAccount;
         }
