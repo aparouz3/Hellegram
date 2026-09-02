@@ -60,6 +60,8 @@ public class ScreenTimeActivity extends BaseFragment {
     private ListAdapter adapter;
     private List<long[]> data;
     private long maxTime = 1;
+    private List<long[]> weeklyData;   // === WEEKLY STATS === (per-chat time for last 7 days)
+    private long maxWeekTime = 1;      // === WEEKLY STATS ===
 
     private long[] hourlyTotal;
     private long[] boxPlot;
@@ -105,12 +107,23 @@ public class ScreenTimeActivity extends BaseFragment {
         listView.setOnItemClickListener((view, position) -> {
             int type = adapter.getItemViewType(position);
             if (type == 3) {
-                int idx = position - adapter.getItemsStartOffset();
-                if (data != null && idx >= 0 && idx < data.size()) {
-                    long[] entry = data.get(idx);
-                    if (entry[0] != OTHER_DIALOG_ID) {
-                        showLimitDialog(entry[0]);
+                int offset = adapter.getItemsStartOffset();
+                int items = (data == null ? 0 : data.size());
+                int tEnd = offset + (items == 0 ? 1 : items);
+                long[] entry = null;
+                if (position >= offset && position < tEnd) {
+                    int idx = position - offset;
+                    if (data != null && idx >= 0 && idx < data.size()) {
+                        entry = data.get(idx);
                     }
+                } else {
+                    int idx = position - (tEnd + 2);
+                    if (weeklyData != null && idx >= 0 && idx < weeklyData.size()) {
+                        entry = weeklyData.get(idx);
+                    }
+                }
+                if (entry != null && entry[0] != OTHER_DIALOG_ID) {
+                    showLimitDialog(entry[0]);
                 }
             } else if (type == 10) {
                 // Toggle global timer
@@ -155,6 +168,16 @@ public class ScreenTimeActivity extends BaseFragment {
                 if (entry[1] > maxTime) {
                     maxTime = entry[1];
                 }
+            }
+        }
+        // === WEEKLY STATS === (per-chat screen time for the last 7 days)
+        List<long[]> weekList = tracker.getWeekPerChat();
+        weeklyData = weekList == null ? new ArrayList<>() : new ArrayList<>(weekList);
+        weeklyData.sort((a, b) -> Long.compare(b[1], a[1]));
+        maxWeekTime = 1;
+        for (long[] entry : weeklyData) {
+            if (entry[1] > maxWeekTime) {
+                maxWeekTime = entry[1];
             }
         }
         hourlyTotal = tracker.getHourlyDistribution();
@@ -312,36 +335,46 @@ public class ScreenTimeActivity extends BaseFragment {
         public int getItemViewType(int position) {
             int offset = getItemsStartOffset();
             int items = (data == null ? 0 : data.size());
-            int itemsEnd = offset + (items == 0 ? 1 : items);
-            if (position == 0) return 0; // Total header
-            if (position == 1) return 10; // global timer toggle (moved to top for visibility)
-            if (position == 2) return 1; // Description
-            if (position == 3) return 2; // "By Chat" header
-            if (position == offset && items == 0) return 4; // empty state
-            if (position >= offset && position < itemsEnd) return 3; // chat row
-            if (position == itemsEnd) return 1; // section desc
-            if (position == itemsEnd + 1) return 5; // bar chart header
-            if (position == itemsEnd + 2) return 6; // bar chart
-            if (position == itemsEnd + 3) return 7; // bar chart desc
-            if (position == itemsEnd + 4) return 5; // hourly header
-            if (position == itemsEnd + 5) return 8; // hourly chart
-            if (position == itemsEnd + 6) return 7; // hourly desc
-            if (position == itemsEnd + 7) return 5; // box plot header
-            if (position == itemsEnd + 8) return 9; // box plot chart
-            if (position == itemsEnd + 9) return 7; // box plot desc
+            int witems = (weeklyData == null ? 0 : weeklyData.size());
+            int tEnd = offset + (items == 0 ? 1 : items);
+            int wEnd = tEnd + 2 + (witems == 0 ? 1 : witems);
+            if (position == 0) return 0;      // Today's Total
+            if (position == 1) return 0;      // This Week's Total
+            if (position == 2) return 10;     // global timer toggle
+            if (position == 3) return 1;      // description
+            if (position == 4) return 2;      // "By Chat" header
+            if (position == offset && items == 0) return 4;          // today empty
+            if (position >= offset && position < tEnd) return 3;     // today chat row
+            if (position == tEnd) return 1;                          // section desc
+            if (position == tEnd + 1) return 2;                      // "This Week by Chat" header
+            if (position == tEnd + 2 && witems == 0) return 4;       // weekly empty
+            if (position >= tEnd + 2 && position < wEnd) return 3;   // weekly chat row
+            if (position == wEnd) return 1;                          // weekly desc
+            int chart = position - (wEnd + 1);                        // charts
+            if (chart == 0) return 5;
+            if (chart == 1) return 6;
+            if (chart == 2) return 7;
+            if (chart == 3) return 5;
+            if (chart == 4) return 8;
+            if (chart == 5) return 7;
+            if (chart == 6) return 5;
+            if (chart == 7) return 9;
+            if (chart == 8) return 7;
             return 0;
         }
 
         @Override
         public int getItemCount() {
             int items = (data == null ? 0 : data.size());
-            int chatSection = 4 + (items == 0 ? 1 : items); // 4 = total header + toggle + desc + "By Chat" header
-            int chartSection = 10;
-            return chatSection + chartSection;
+            int witems = (weeklyData == null ? 0 : weeklyData.size());
+            int offset = getItemsStartOffset();
+            int tEnd = offset + (items == 0 ? 1 : items);
+            int wEnd = tEnd + 2 + (witems == 0 ? 1 : witems);
+            return wEnd + 10;   // wEnd desc + 9 chart rows
         }
 
         public int getItemsStartOffset() {
-            return 4;
+            return 5;
         }
 
         @Override
@@ -389,15 +422,34 @@ public class ScreenTimeActivity extends BaseFragment {
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             int type = getItemViewType(position);
+            int offset = getItemsStartOffset();
+            int items = (data == null ? 0 : data.size());
+            int witems = (weeklyData == null ? 0 : weeklyData.size());
+            int tEnd = offset + (items == 0 ? 1 : items);
+            int wEnd = tEnd + 2 + (witems == 0 ? 1 : witems);
             if (type == 0) {
-                long total = ScreenTimeTracker.getInstance().getTodayTotal();
                 TextCell cell = (TextCell) holder.itemView;
-                cell.setTextAndValue("Today's Total", ScreenTimeTracker.formatDuration(total), true);
+                if (position == 0) {
+                    cell.setTextAndValue("Today's Total", ScreenTimeTracker.formatDuration(ScreenTimeTracker.getInstance().getTodayTotal()), true);
+                } else if (position == 1) {
+                    cell.setTextAndValue("This Week's Total", ScreenTimeTracker.formatDuration(ScreenTimeTracker.getInstance().getWeekTotalAll()), true);
+                }
             } else if (type == 3) {
-                int idx = position - getItemsStartOffset();
-                if (data != null && idx >= 0 && idx < data.size()) {
-                    long[] entry = data.get(idx);
-                    ((ChatTimeCell) holder.itemView).setData(entry[0], getChatName(entry[0]), entry[1], maxTime);
+                ChatTimeCell cell = (ChatTimeCell) holder.itemView;
+                if (position >= offset && position < tEnd) {
+                    cell.setWeekly(false);
+                    int idx = position - offset;
+                    if (data != null && idx >= 0 && idx < data.size()) {
+                        long[] entry = data.get(idx);
+                        cell.setData(entry[0], getChatName(entry[0]), entry[1], maxTime);
+                    }
+                } else {
+                    cell.setWeekly(true);
+                    int idx = position - (tEnd + 2);
+                    if (weeklyData != null && idx >= 0 && idx < weeklyData.size()) {
+                        long[] entry = weeklyData.get(idx);
+                        cell.setData(entry[0], getChatName(entry[0]), entry[1], maxWeekTime);
+                    }
                 }
             } else if (type == 4) {
                 TextCell cell = (TextCell) holder.itemView;
@@ -407,16 +459,17 @@ public class ScreenTimeActivity extends BaseFragment {
                 boolean globalTimer = ScreenTimeTracker.getInstance().isGlobalTimerEnabled();
                 TextCell cell = (TextCell) holder.itemView;
                 cell.setTextAndValue("Show timer in chat list", globalTimer ? "On" : "Off", true);
-            } else if (type == 5) {
-                int items = (data == null ? 0 : data.size());
-                int itemsEnd = getItemsStartOffset() + (items == 0 ? 1 : items);
-                if (position == itemsEnd + 1) {
-                    ((HeaderCell) holder.itemView).setText("Time per Chat");
-                } else if (position == itemsEnd + 4) {
-                    ((HeaderCell) holder.itemView).setText("Hourly Distribution");
-                } else if (position == itemsEnd + 7) {
-                    ((HeaderCell) holder.itemView).setText("Usage Spread");
+            } else if (type == 2) {
+                if (position == 4) {
+                    ((HeaderCell) holder.itemView).setText("By Chat");
+                } else if (position == tEnd + 1) {
+                    ((HeaderCell) holder.itemView).setText("This Week by Chat");
                 }
+            } else if (type == 5) {
+                int chart = position - (wEnd + 1);
+                if (chart == 0) ((HeaderCell) holder.itemView).setText("Time per Chat");
+                else if (chart == 3) ((HeaderCell) holder.itemView).setText("Hourly Distribution");
+                else if (chart == 6) ((HeaderCell) holder.itemView).setText("Usage Spread");
             } else if (type == 6) {
                 ((BarChartContainer) holder.itemView).setData(data, maxTime);
             } else if (type == 8) {
@@ -424,22 +477,21 @@ public class ScreenTimeActivity extends BaseFragment {
             } else if (type == 9) {
                 ((BoxPlotContainer) holder.itemView).setData(boxPlot);
             } else if (type == 7) {
-                int items = (data == null ? 0 : data.size());
-                int itemsEnd = getItemsStartOffset() + (items == 0 ? 1 : items);
-                if (position == itemsEnd + 2) {
+                int chart = position - (wEnd + 1);
+                if (chart == 2) {
                     ((TextInfoPrivacyCell) holder.itemView).setText("Bar chart comparing screen time across all chats today.");
-                } else if (position == itemsEnd + 5) {
+                } else if (chart == 5) {
                     ((TextInfoPrivacyCell) holder.itemView).setText("Screen time per hour of the day. Helps identify peak usage times.");
-                } else if (position == itemsEnd + 8) {
+                } else if (chart == 8) {
                     ((TextInfoPrivacyCell) holder.itemView).setText("Distribution of screen time across active hours. The box shows Q1–Q3 with the median marked in red. Whiskers show min and max.");
                 }
             } else if (type == 1) {
-                int items = (data == null ? 0 : data.size());
-                int itemsEnd = getItemsStartOffset() + (items == 0 ? 1 : items);
-                if (position == 2) {
+                if (position == 3) {
                     ((TextInfoPrivacyCell) holder.itemView).setText("Tap any chat to set a daily time limit. You'll get a notification when the limit is reached.");
-                } else if (position == itemsEnd) {
+                } else if (position == tEnd) {
                     ((TextInfoPrivacyCell) holder.itemView).setText("Tap any chat to set a daily time limit or toggle the live timer.");
+                } else if (position == wEnd) {
+                    ((TextInfoPrivacyCell) holder.itemView).setText("Weekly screen time per chat for the last 7 days.");
                 }
             }
         }
@@ -457,6 +509,7 @@ public class ScreenTimeActivity extends BaseFragment {
         private long dialogId;
         private long ms;
         private long maxMs;
+        private boolean weekly; // === WEEKLY STATS === (don't apply live today-time updates)
 
         public ChatTimeCell(Context context) {
             super(context);
@@ -501,6 +554,10 @@ public class ScreenTimeActivity extends BaseFragment {
             addView(limitText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 52, 30, 0, 0));
         }
 
+        public void setWeekly(boolean isWeekly) {
+            this.weekly = isWeekly;
+        }
+
         public void setData(long dialogId, String name, long ms, long maxMs) {
             this.dialogId = dialogId;
             this.ms = ms;
@@ -531,7 +588,7 @@ public class ScreenTimeActivity extends BaseFragment {
                 progressView.setScaleX(Math.max(0.02f, ratio));
 
                 long limit = ScreenTimeTracker.getInstance().getLimit(dialogId);
-                if (limit > 0) {
+                if (limit > 0 && !weekly) {
                     limitText.setVisibility(View.VISIBLE);
                     String limitStr = "Limit: " + ScreenTimeTracker.formatDuration(limit);
                     if (ms >= limit) {
@@ -550,6 +607,9 @@ public class ScreenTimeActivity extends BaseFragment {
         }
 
         public void updateLiveTime() {
+            if (weekly) {
+                return;
+            }
             if (dialogId == 0) return;
             if (dialogId == OTHER_DIALOG_ID) {
                 // Show live "Other" time if app is in foreground and not in a chat

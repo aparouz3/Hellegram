@@ -140,7 +140,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
     private TextView playNextQueueBar;
-    private androidx.appcompat.app.AlertDialog playNextQueueDialog; // === QUEUE === (interactive queue dialog)
+    private AlertDialog playNextQueueDialog; // === QUEUE === (interactive queue dialog, Telegram-themed)
     private ListAdapter listAdapter;
     private LinearLayout emptyView;
     private ImageView emptyImageView;
@@ -2296,7 +2296,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         showPlayNextQueueDialog();
     }
 
-    private androidx.appcompat.app.AlertDialog buildQueueDialog(Context ctx, MediaController mediaController, ArrayList<MessageObject> queue) {
+    private AlertDialog buildQueueDialog(Context ctx, MediaController mediaController, ArrayList<MessageObject> queue) {
         android.widget.ScrollView scrollView = new android.widget.ScrollView(ctx);
         scrollView.setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
         LinearLayout list = new LinearLayout(ctx);
@@ -2348,7 +2348,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 }));
         }
 
-        return new androidx.appcompat.app.AlertDialog.Builder(ctx)
+        return new AlertDialog.Builder(ctx, resourcesProvider)
             .setView(scrollView)
             .setNegativeButton(LocaleController.getString(R.string.Close), null)
             .create();

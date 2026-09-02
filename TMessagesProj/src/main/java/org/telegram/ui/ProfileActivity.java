@@ -4311,22 +4311,21 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 org.telegram.messenger.partisan.voicechange.VoiceChangerUI.showSettingsDialog(ProfileActivity.this, getDialogId(), () -> updateListAnimated(false));
                 // === VOICE_CHANGER END ===
             } else if (position == antiDeleteRow) {
-                // === ANTI_DELETE START === (toggle anti-delete from profile, ask before enabling)
+                // === ANTI_DELETE START === (toggle anti-delete from profile; ask before enabling AND disabling)
                 org.telegram.messenger.ScreenTimeTracker stAd = org.telegram.messenger.ScreenTimeTracker.getInstance();
-                if (stAd.isAntiDeleteEnabled()) {
-                    // Already on -> just turn off
-                    stAd.toggleAntiDelete();
-                    updateListAnimated(false);
-                } else if (getParentActivity() != null) {
-                    new androidx.appcompat.app.AlertDialog.Builder(getParentActivity())
-                            .setTitle("Enable Anti-Delete?")
-                            .setMessage("When enabled, messages deleted by the other person stay visible in this chat.")
-                            .setPositiveButton("Enable", (d, w) -> {
-                                stAd.toggleAntiDelete();
-                                updateListAnimated(false);
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
+                if (getParentActivity() != null) {
+                    boolean antiDeleteOn = stAd.isAntiDeleteEnabled();
+                    AlertDialog.Builder adBuilder = new AlertDialog.Builder(getParentActivity(), resourcesProvider);
+                    adBuilder.setTitle(antiDeleteOn ? "Disable Anti-Delete?" : "Enable Anti-Delete?");
+                    adBuilder.setMessage(antiDeleteOn
+                            ? "When disabled, messages deleted by the other person will no longer be kept visible in this chat."
+                            : "When enabled, messages deleted by the other person stay visible in this chat.");
+                    adBuilder.setPositiveButton(antiDeleteOn ? "Disable" : "Enable", (d, w) -> {
+                        stAd.toggleAntiDelete();
+                        updateListAnimated(false);
+                    });
+                    adBuilder.setNegativeButton("Cancel", null);
+                    adBuilder.show();
                 }
                 // === ANTI_DELETE END ===
             } else if (position == affiliateRow) {
