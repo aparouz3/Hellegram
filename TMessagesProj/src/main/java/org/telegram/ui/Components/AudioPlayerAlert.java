@@ -181,7 +181,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
     private ActionBarMenuItem addItem;
     private ActionBarMenuItem searchItem;
     private boolean blurredAnimationInProgress;
-    private View[] buttons = new View[5];
+    private View[] buttons = new View[6];
     private SpringAnimation seekBarBufferSpring;
 
     private boolean draggingSeekBar;
@@ -754,8 +754,8 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         FrameLayout bottomView = new FrameLayout(context) {
             @Override
             protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-                int dist = ((right - left) - dp(8 + 48 * 5)) / 4;
-                for (int a = 0; a < 5; a++) {
+                int dist = ((right - left) - dp(8 + 48 * 6)) / 5;
+                for (int a = 0; a < 6; a++) {
                     int l = dp(4 + 48 * a) + dist * a;
                     int t = dp(9);
                     buttons[a].layout(l, t, l + buttons[a].getMeasuredWidth(), t + buttons[a].getMeasuredHeight());
@@ -1091,6 +1091,17 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         optionsButton.addSubItem(8, R.drawable.msg_arrow_forward, LocaleController.getString(R.string.PlayNext));
         optionsButton.addSubItem(5, R.drawable.msg_download, LocaleController.getString(R.string.SaveToMusic));
         optionsButton.addSubItem(4, R.drawable.msg_message, LocaleController.getString(R.string.ShowInChat));
+
+        // === QUEUE === (always-visible button that opens the Play Next queue dialog)
+        ActionBarMenuItem queueButton = new ActionBarMenuItem(context, null, 0, iconColor, false, resourcesProvider);
+        queueButton.setLongClickEnabled(false);
+        queueButton.setShowSubmenuByMove(false);
+        queueButton.setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), 1, dp(18)));
+        queueButton.setIcon(R.drawable.iv_ordered_list);
+        queueButton.setContentDescription(LocaleController.getString(R.string.PlayNextQueue));
+        bottomView.addView(queueButton, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.TOP));
+        buttons[5] = queueButton;
+        queueButton.setOnClickListener(v -> showPlayNextQueueDialog());
 
         castItemButton = new CastMediaRouteButton(context) {
             @Override
@@ -2279,6 +2290,13 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         final MediaController mediaController = MediaController.getInstance();
         final ArrayList<MessageObject> queue = mediaController.getPlayNextQueue();
         if (queue.isEmpty()) {
+            if (getContext() != null) {
+                new AlertDialog.Builder(getContext(), resourcesProvider)
+                        .setTitle(LocaleController.getString(R.string.PlayNextQueue))
+                        .setMessage("The queue is empty. Add songs to Play Next to see them here.")
+                        .setPositiveButton(LocaleController.getString(R.string.Close), null)
+                        .show();
+            }
             return;
         }
         if (playNextQueueDialog != null && playNextQueueDialog.isShowing()) {
