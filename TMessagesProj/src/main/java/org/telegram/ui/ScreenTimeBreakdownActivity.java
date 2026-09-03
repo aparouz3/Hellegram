@@ -10,11 +10,14 @@ package org.telegram.ui;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -31,8 +34,11 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.HeaderCell;
+import org.telegram.ui.Cells.TextCell;
+import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
+import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -69,12 +75,14 @@ public class ScreenTimeBreakdownActivity extends BaseFragment {
         }
     };
 
+    public ScreenTimeBreakdownActivity(Bundle args) {
+        super(args);
+    }
+
     public static ScreenTimeBreakdownActivity of(String period) {
-        ScreenTimeBreakdownActivity f = new ScreenTimeBreakdownActivity();
         Bundle b = new Bundle();
         b.putString(ARG_PERIOD, period);
-        f.setArguments(b);
-        return f;
+        return new ScreenTimeBreakdownActivity(b);
     }
 
     @Override
