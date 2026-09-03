@@ -289,6 +289,7 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
 
+        AntiDeleteStore.init(); // === ANTI_DELETE === (warm the persistent held-messages store early)
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app start time = " + (startTime = SystemClock.elapsedRealtime()));
             try {

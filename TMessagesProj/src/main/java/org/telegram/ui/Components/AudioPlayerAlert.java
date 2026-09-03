@@ -1078,7 +1078,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         bottomView.addView(nextButton, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.TOP));
         nextButton.setContentDescription(LocaleController.getString(R.string.Next));
 
-        buttons[4] = optionsButton = new ActionBarMenuItem(context, null, 0, iconColor, false, resourcesProvider);
+        buttons[5] = optionsButton = new ActionBarMenuItem(context, null, 0, iconColor, false, resourcesProvider);
         optionsButton.setIcon(optionsIcon = new ChooseQualityLayout.QualityIcon(context, R.drawable.ic_ab_other, resourcesProvider));
         optionsButton.setLongClickEnabled(false);
         optionsButton.setShowSubmenuByMove(false);
@@ -1100,7 +1100,7 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         queueButton.setIcon(R.drawable.iv_ordered_list);
         queueButton.setContentDescription(LocaleController.getString(R.string.PlayNextQueue));
         bottomView.addView(queueButton, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.TOP));
-        buttons[5] = queueButton;
+        buttons[4] = queueButton;
         queueButton.setOnClickListener(v -> showPlayNextQueueDialog());
 
         castItemButton = new CastMediaRouteButton(context) {

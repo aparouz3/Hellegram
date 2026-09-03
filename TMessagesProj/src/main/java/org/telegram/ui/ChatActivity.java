@@ -136,6 +136,7 @@ import com.google.zxing.common.detector.MathUtils;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.AntiDeleteStore;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BotForumHelper;
 import org.telegram.messenger.BotInlineKeyboard;
@@ -20484,6 +20485,7 @@ public class ChatActivity extends BaseFragment implements
             }
             if (obj != null && !obj.antiDeleteHeld) {
                 obj.antiDeleteHeld = true;
+                AntiDeleteStore.markHeld(this.dialog_id, mid);
                 updated = true;
             }
         }
@@ -22163,6 +22165,7 @@ public class ChatActivity extends BaseFragment implements
             if (did != dialog_id) {
                 return;
             }
+            AntiDeleteStore.clearDialog(dialog_id); // === ANTI_DELETE === (drop held entries when history is cleared)
             int max_id = (Integer) args[1];
             if (!pinnedMessageIds.isEmpty()) {
                 pinnedMessageIds.clear();

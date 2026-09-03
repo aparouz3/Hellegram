@@ -18438,8 +18438,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         } else {
             currentTimeString = timeString;
         }
-        // === ANTI_DELETE === (label messages the sender deleted but we keep visible)
-        if (currentMessageObject.antiDeleteHeld) {
+        // === ANTI_DELETE === (label messages the sender deleted but we keep visible; persistent)
+        if (currentMessageObject.antiDeleteHeld || org.telegram.messenger.AntiDeleteStore.isHeld(currentMessageObject.getDialogId(), currentMessageObject.getId())) {
             String delStr = "This message was deleted by the sender";
             android.text.SpannableStringBuilder delSsb = new android.text.SpannableStringBuilder(currentTimeString);
             int delStart = delSsb.length();
