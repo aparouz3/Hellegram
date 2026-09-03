@@ -67,7 +67,7 @@ jobs:
         free -h
 
     - name: Build Debug APK
-      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=1
+      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=2
       env:
         APP_VERSION_CODE: 6991
         APP_VERSION_NAME: 12.9.5-no-logs
@@ -76,7 +76,7 @@ jobs:
         RELEASE_KEY_PASSWORD: android
         RELEASE_KEY_ALIAS: androidkey
         RELEASE_STORE_PASSWORD: android
-        CMAKE_BUILD_PARALLEL_LEVEL: '1'
+        CMAKE_BUILD_PARALLEL_LEVEL: '2'
 
     - name: Publish Release (latest-build)
       env:
