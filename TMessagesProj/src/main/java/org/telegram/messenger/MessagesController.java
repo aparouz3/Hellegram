@@ -10908,14 +10908,19 @@ public class MessagesController extends BaseController implements NotificationCe
                         }
                     }
                 }
-                promoDialogId = did;
                 if (res.proxy) {
+                    // Hellegram: don't show the sponsored proxy channel anywhere
+                    noDialog = true;
+                    promoDialogId = 0;
                     promoDialogType = PROMO_TYPE_PROXY;
-                } else if (!TextUtils.isEmpty(res.psa_type)) {
-                    promoDialogType = PROMO_TYPE_PSA;
-                    promoPsaType = res.psa_type;
                 } else {
-                    promoDialogType = PROMO_TYPE_OTHER;
+                    promoDialogId = did;
+                    if (!TextUtils.isEmpty(res.psa_type)) {
+                        promoDialogType = PROMO_TYPE_PSA;
+                        promoPsaType = res.psa_type;
+                    } else {
+                        promoDialogType = PROMO_TYPE_OTHER;
+                    }
                 }
                 proxyDialogAddress = proxyAddress + proxySecret;
                 promoPsaMessage = res.psa_message;
