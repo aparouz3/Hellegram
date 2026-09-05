@@ -28,6 +28,22 @@ jobs:
       with:
         packages: 'platform-tools platforms;android-35 build-tools;35.0.0 ndk;27.2.12479018 cmake;3.22.1'
 
+    - name: Install ccache
+      run: |
+        sudo apt-get update -qq && sudo apt-get install -y -qq ccache
+        ccache --version | head -1
+        mkdir -p ~/.ccache
+        ccache --set-config=max_size=600M
+        ccache --set-config=sloppiness=pch_defines,time_macros
+
+    - name: Cache ccache (native code)
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache-${{ runner.os }}-${{ hashFiles('TMessagesProj/jni/**') }}
+        restore-keys: |
+          ccache-${{ runner.os }}-
+
     - name: Cache Gradle
       uses: actions/cache@v4
       with:
@@ -67,7 +83,7 @@ jobs:
         free -h
 
     - name: Build Debug APK
-      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=2
+      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --no-daemon --stacktrace --max-workers=4
       env:
         APP_VERSION_CODE: 6991
         APP_VERSION_NAME: 12.9.5-no-logs
@@ -76,7 +92,8 @@ jobs:
         RELEASE_KEY_PASSWORD: android
         RELEASE_KEY_ALIAS: androidkey
         RELEASE_STORE_PASSWORD: android
-        CMAKE_BUILD_PARALLEL_LEVEL: '2'
+        CMAKE_BUILD_PARALLEL_LEVEL: '4'
+        USE_CCACHE: '1'
 
     - name: Publish Release (latest-build)
       env:
