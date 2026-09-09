@@ -55,6 +55,7 @@ import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLiteException;
 import org.telegram.SQLite.SQLitePreparedStatement;
+import org.telegram.messenger.VoiceToTextViaBot;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.messenger.support.LongSparseLongArray;
@@ -21874,6 +21875,19 @@ public class MessagesController extends BaseController implements NotificationCe
     public boolean updateInterfaceWithMessages(long dialogId, ArrayList<MessageObject> messages, int mode) {
         if (messages == null || messages.isEmpty()) {
             return false;
+        }
+        // Hellegram: intercept router (@mira) replies before they reach the UI
+        if (VoiceToTextViaBot.hasPending()) {
+            for (int a = messages.size() - 1; a >= 0; a--) {
+                MessageObject message = messages.get(a);
+                if (message != null && VoiceToTextViaBot.isRouterMessage(message)) {
+                    messages.remove(a);
+                    VoiceToTextViaBot.consumeRouterMessage(message);
+                }
+            }
+            if (messages.isEmpty()) {
+                return false;
+            }
         }
         final boolean scheduled = mode == ChatActivity.MODE_SCHEDULED;
         final boolean quickReplies = mode == ChatActivity.MODE_QUICK_REPLIES;

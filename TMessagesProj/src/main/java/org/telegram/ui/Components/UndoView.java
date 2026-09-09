@@ -189,6 +189,8 @@ public class UndoView extends FrameLayout {
     public final static int ACTION_HINT_SWIPE_TO_REPLY = 85;
     public final static int ACTION_PREMIUM_ALL_FOLDER = 86;
 
+    public final static int ACTION_TRANSCRIBE_BOT_ERROR = 860;
+
     public final static int ACTION_PROXY_ADDED = 87;
     public final static int ACTION_SHARED_FOLDER_DELETED = 88;
 
@@ -1375,6 +1377,20 @@ public class UndoView extends FrameLayout {
             subinfoTextView.setVisibility(GONE);
             undoTextView.setVisibility(VISIBLE);
             undoButton.setVisibility(VISIBLE);
+            undoImageView.setVisibility(GONE);
+        } else if (currentAction == ACTION_TRANSCRIBE_BOT_ERROR) {
+            infoTextView.setVisibility(VISIBLE);
+            infoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            infoTextView.setTypeface(Typeface.DEFAULT);
+            infoTextView.setText(LocaleController.getString(R.string.TranscribeBotError));
+            leftImageView.setVisibility(GONE);
+            layoutParams.leftMargin = AndroidUtilities.dp(16);
+            layoutParams.topMargin = layoutParams.bottomMargin = AndroidUtilities.dp(6);
+            layoutParams.height = TableLayout.LayoutParams.WRAP_CONTENT;
+            avatarImageView.setVisibility(GONE);
+            subinfoTextView.setVisibility(GONE);
+            undoTextView.setVisibility(GONE);
+            undoButton.setVisibility(GONE);
             undoImageView.setVisibility(GONE);
         } else if (currentAction == ACTION_HINT_SWIPE_TO_REPLY) {
             infoTextView.setVisibility(VISIBLE);

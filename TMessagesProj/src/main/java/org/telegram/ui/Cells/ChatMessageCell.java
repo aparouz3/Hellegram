@@ -755,6 +755,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         default void needShowPremiumBulletin(int type) {
         }
 
+        default void needShowTranscribeBotError() {
+        }
+
         default boolean isAdmin(long uid) {
             return false;
         }
