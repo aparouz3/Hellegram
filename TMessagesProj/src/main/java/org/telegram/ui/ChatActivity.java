@@ -175,6 +175,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
+import org.telegram.messenger.SenderMuteController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
@@ -1281,6 +1282,9 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_SUGGESTION_ADD_OFFER = 114;
 
     public final static int OPTION_VIEW_STATISTICS = 115;
+
+    public final static int OPTION_MUTE_SENDER = 116;
+    public final static int OPTION_UNMUTE_SENDER = 117;
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             NotificationCenter.messagesRead,
@@ -33516,6 +33520,26 @@ public class ChatActivity extends BaseFragment implements
                 BulletinFactory.createSaveToGalleryBulletin(this, selectedObject.isVideo() && !selectedObject.isLivePhoto(), selectedObject.isLivePhoto(), themeDelegate).show();
                 break;
             }
+            case OPTION_MUTE_SENDER: {
+                if (currentChat != null && selectedObject != null) {
+                    final long senderId = selectedObject.getSenderId();
+                    SenderMuteController.setMuted(dialog_id, senderId, true);
+                    TLRPC.User user = getMessagesController().getUser(senderId);
+                    String name = user != null ? UserObject.getFirstName(user) : "";
+                    BulletinFactory.createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderMutedBulletin, name)).show();
+                }
+                break;
+            }
+            case OPTION_UNMUTE_SENDER: {
+                if (currentChat != null && selectedObject != null) {
+                    final long senderId = selectedObject.getSenderId();
+                    SenderMuteController.setMuted(dialog_id, senderId, false);
+                    TLRPC.User user = getMessagesController().getUser(senderId);
+                    String name = user != null ? UserObject.getFirstName(user) : "";
+                    BulletinFactory.createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderUnmutedBulletin, name)).show();
+                }
+                break;
+            }
             case OPTION_REPLY: {
                 if (selectedObject != null && selectedObject.messageOwner != null && selectedObject.messageOwner.noforwards) {
                     return;
@@ -45458,6 +45482,25 @@ public class ChatActivity extends BaseFragment implements
         final int type = getMessageType(message);
         final boolean isEphemeral = message.isEphemeral();
         final boolean isEphemeralFromBot = isEphemeral && !message.isOut();
+
+        if (currentChat != null && currentChat.megagroup && !currentChat.forum && message.getSenderId() != 0) {
+            final long senderMuteId = message.getSenderId();
+            final boolean senderMuted = SenderMuteController.isMuted(dialog_id, senderMuteId);
+            String senderName = null;
+            TLRPC.User senderUser = getMessagesController().getUser(senderMuteId);
+            if (senderUser != null) {
+                senderName = UserObject.getFirstName(senderUser);
+            }
+            if (senderMuted) {
+                items.add(LocaleController.getString(R.string.UnmuteSender));
+                options.add(OPTION_UNMUTE_SENDER);
+                icons.add(R.drawable.msg_notifications);
+            } else if (senderUser != null) {
+                items.add(LocaleController.formatString(R.string.MuteSenderName, senderName));
+                options.add(OPTION_MUTE_SENDER);
+                icons.add(R.drawable.msg_mute);
+            }
+        }
 
 
         boolean allowChatActions = true;

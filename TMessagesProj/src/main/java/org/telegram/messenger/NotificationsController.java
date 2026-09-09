@@ -1025,6 +1025,9 @@ public class NotificationsController extends BaseController implements Notificat
         if (messageObjects != null) {
             for (int i = 0; i < messageObjects.size(); ++i) {
                 final MessageObject messageObject = messageObjects.get(i);
+                if (messageObject != null && messageObject.messageOwner != null && !messageObject.isOutOwner() && SenderMuteController.isMuted(messageObject.getDialogId(), messageObject.getSenderId())) {
+                    continue;
+                }
                 if (messageObject != null && messageObject.messageOwner != null&& !messageObject.isOutOwner() && messageObject.messageOwner.action instanceof TLRPC.TL_messageActionConferenceCall) {
                     final TLRPC.TL_messageActionConferenceCall action = (TLRPC.TL_messageActionConferenceCall) messageObject.messageOwner.action;
                     if (!action.active && !action.missed && (getConnectionsManager().getCurrentTime() - messageObject.messageOwner.date) < getMessagesController().callRingTimeout / 1000L) {
@@ -1180,6 +1183,12 @@ public class NotificationsController extends BaseController implements Notificat
 
                 long originalDialogId = dialogId;
                 long topicId = MessageObject.getTopicId(currentAccount, messageObject.messageOwner, getMessagesController().isForum(messageObject));
+                if (!messageObject.isOutOwner() && SenderMuteController.isMuted(dialogId, messageObject.getSenderId())) {
+                    if (BuildVars.LOGS_ENABLED) {
+                        FileLog.d("NotificationsController: skipped message because sender is locally muted (dialogId=" + dialogId + ", senderId=" + messageObject.getSenderId() + ")");
+                    }
+                    continue;
+                }
                 if (dialogId == openedDialogId && ApplicationLoader.isScreenOn && !messageObject.isStoryReactionPush && !messageObject.isOauthPush) {
                     if (!isFcm) {
                         playInChatSound();
@@ -1550,6 +1559,9 @@ public class NotificationsController extends BaseController implements Notificat
                     long dialog_id = messageObject.getDialogId();
                     long original_dialog_id = dialog_id;
                     long topicId = MessageObject.getTopicId(currentAccount, messageObject.messageOwner, getMessagesController().isForum(messageObject));
+                    if (!messageObject.isOutOwner() && SenderMuteController.isMuted(dialog_id, messageObject.getSenderId())) {
+                        continue;
+                    }
                     if (messageObject.messageOwner.mentioned) {
                         dialog_id = messageObject.getFromChatId();
                     }
