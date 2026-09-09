@@ -176,6 +176,7 @@ import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
 import org.telegram.messenger.SenderMuteController;
+import org.telegram.messenger.VoiceToTextViaBot;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
@@ -2073,7 +2074,7 @@ public class ChatActivity extends BaseFragment implements
                 chatActivityEnterView.getEmojiView().onMessageSend();
             }
 
-            if (!getMessagesController().premiumFeaturesBlocked() && getMessagesController().transcribeAudioTrialWeeklyNumber <= 0 && !getMessagesController().didPressTranscribeButtonEnough() && !getUserConfig().isPremium() && !TextUtils.isEmpty(message) && messages != null) {
+            if (!VoiceToTextViaBot.ENABLED && !getMessagesController().premiumFeaturesBlocked() && getMessagesController().transcribeAudioTrialWeeklyNumber <= 0 && !getMessagesController().didPressTranscribeButtonEnough() && !getUserConfig().isPremium() && !TextUtils.isEmpty(message) && messages != null) {
                 for (int i = 1; i < Math.min(5, messages.size()); ++i) {
                     MessageObject msg = messages.get(i);
                     if (msg != null && !msg.isOutOwner() && (msg.isVoice() || msg.isRoundVideo()) && msg.isContentUnread()) {
@@ -27138,7 +27139,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onBecomeFullyHidden() {
         hideTagSelector();
-        if (!getMessagesController().premiumFeaturesBlocked() && getMessagesController().transcribeAudioTrialWeeklyNumber <= 0 && !getMessagesController().didPressTranscribeButtonEnough() && !getUserConfig().isPremium() && messages != null) {
+        if (!VoiceToTextViaBot.ENABLED && !getMessagesController().premiumFeaturesBlocked() && getMessagesController().transcribeAudioTrialWeeklyNumber <= 0 && !getMessagesController().didPressTranscribeButtonEnough() && !getUserConfig().isPremium() && messages != null) {
             for (int i = 0; i < messages.size(); ++i) {
                 MessageObject msg = messages.get(i);
                 if (msg != null && !msg.isOutOwner() && (msg.isVoice() || msg.isRoundVideo()) && !msg.isUnread() && (msg.isContentUnread() || ChatObject.isChannelAndNotMegaGroup(currentChat))) {
@@ -39954,8 +39955,8 @@ public class ChatActivity extends BaseFragment implements
         }
 
         @Override
-        public void needShowPremiumBulletin(int type) {
-            if (type == 0) {
+    public void needShowPremiumBulletin(int type) {
+        if (type == 0) {
                 checkTopUndoView();
                 if (topUndoView == null) {
                     return;
@@ -39998,6 +39999,14 @@ public class ChatActivity extends BaseFragment implements
                     7000
                 ).show(true);
                 BotWebViewVibrationEffect.APP_ERROR.vibrate();
+            }
+        }
+
+        @Override
+        public void needShowTranscribeBotError() {
+            checkTopUndoView();
+            if (topUndoView != null) {
+                topUndoView.showWithAction(0, UndoView.ACTION_TRANSCRIBE_BOT_ERROR, null);
             }
         }
 

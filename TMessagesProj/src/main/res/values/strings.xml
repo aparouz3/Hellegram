@@ -296,6 +296,7 @@
     <string name="UnmuteSenderName">Unmute %1$s</string>
     <string name="SenderMutedBulletin">%1$s muted in this group. Their messages won\'t show in notifications.</string>
     <string name="SenderUnmutedBulletin">%1$s unmuted. Their messages will appear in notifications again.</string>
+    <string name="TranscribeBotError">Couldn\'t transcribe. Check your connection and try again.</string>
     <string name="UnmuteNotifications">Unmute</string>
     <string name="WillUnmuteIn">In %1$s</string>
     <string name="MuteDisable">Disable</string>

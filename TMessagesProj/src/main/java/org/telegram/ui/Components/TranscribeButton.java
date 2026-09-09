@@ -42,6 +42,7 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.TranslateController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.VoiceToTextViaBot;
 import org.telegram.messenger.utils.DrawableUtils;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -210,6 +211,11 @@ public class TranscribeButton {
         if (parent == null) {
             return;
         }
+        // Hellegram: voice-to-text is handled by the @mira router instead of the native pipeline
+        if (VoiceToTextViaBot.ENABLED) {
+            handleRouterTap();
+            return;
+        }
         clickedToOpen = false;
         boolean processClick, toOpen = !shouldBeOpen;
         if (!shouldBeOpen) {
@@ -247,6 +253,52 @@ public class TranscribeButton {
                 transcribePressed(parent.getMessageObject(), toOpen, parent.getDelegate());
             }
         }
+    }
+
+    // Hellegram: tap → forward voice to @mira with the command text, show the bot's reply in the transcription slot
+    private void handleRouterTap() {
+        final MessageObject messageObject = parent.getMessageObject();
+        if (messageObject == null || messageObject.messageOwner == null || !messageObject.isSent()) {
+            return;
+        }
+        boolean toOpen = !shouldBeOpen;
+        if (!toOpen) {
+            setOpen(false, true);
+            setLoading(false, true);
+            VoiceToTextViaBot.cancelPending(messageObject);
+            return;
+        }
+        if (loading) {
+            return;
+        }
+        if (!TextUtils.isEmpty(messageObject.messageOwner.voiceTranscription)) {
+            messageObject.messageOwner.voiceTranscriptionOpen = true;
+            MessagesStorage.getInstance(parent.currentAccount).updateMessageVoiceTranscriptionOpen(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner);
+            AndroidUtilities.runOnUIThread(() -> {
+                NotificationCenter.getInstance(parent.currentAccount).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, null, (Boolean) true, (Boolean) true);
+            });
+            setOpen(true, true);
+            return;
+        }
+        setLoading(true, true);
+        VoiceToTextViaBot.sendVoiceForTranscription(messageObject, (text, finalResult, timedOut) -> {
+            setLoading(false, true);
+            if (timedOut && TextUtils.isEmpty(text)) {
+                if (parent.getDelegate() != null) {
+                    parent.getDelegate().needShowTranscribeBotError();
+                }
+                return;
+            }
+            messageObject.messageOwner.voiceTranscription = text == null ? "" : text;
+            messageObject.messageOwner.voiceTranscriptionFinal = true;
+            TranscribeButton.openVideoTranscription(messageObject);
+            messageObject.messageOwner.voiceTranscriptionOpen = true;
+            MessagesStorage.getInstance(parent.currentAccount).updateMessageVoiceTranscription(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner.voiceTranscription, messageObject.messageOwner);
+            AndroidUtilities.runOnUIThread(() -> {
+                NotificationCenter.getInstance(parent.currentAccount).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, messageObject.messageOwner.voiceTranscription, (Boolean) true, (Boolean) true);
+            });
+            setOpen(true, true);
+        });
     }
 
     public void drawGradientBackground(Canvas canvas, Rect bounds, float alpha) {
@@ -665,6 +717,9 @@ public class TranscribeButton {
     }
 
     public static boolean isTranscribing(MessageObject messageObject) {
+        if (VoiceToTextViaBot.ENABLED && VoiceToTextViaBot.hasPendingFor(messageObject)) {
+            return true;
+        }
         return (
             (transcribeOperationsByDialogPosition != null && (transcribeOperationsByDialogPosition.containsValue(messageObject) || transcribeOperationsByDialogPosition.containsKey((Integer) reqInfoHash(messageObject)))) ||
             (transcribeOperationsById != null && messageObject != null && messageObject.messageOwner != null && transcribeOperationsById.containsKey(messageObject.messageOwner.voiceTranscriptionId))

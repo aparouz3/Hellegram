@@ -7519,7 +7519,7 @@ public class MessageObject {
             (isVoice() || isRoundVideo() && TranscribeButton.isVideoTranscriptionOpen(this)) &&
             messageOwner.voiceTranscriptionOpen &&
             messageOwner.voiceTranscription != null &&
-            (messageOwner.voiceTranscriptionFinal || TranscribeButton.isTranscribing(this))
+            (messageOwner.voiceTranscriptionFinal || TranscribeButton.isTranscribing(this) || VoiceToTextViaBot.hasPendingFor(this))
         );
     }
 
