@@ -1,6 +1,7 @@
 package org.telegram.messenger;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -83,7 +84,7 @@ public class VoiceToTextViaBot {
                 }
             }
             if (botUser == null) {
-                FileLog.d("VoiceToTextViaBot: failed to resolve @" + BOT_USERNAME);
+                Log.i("HellegramVTTB", "VoiceToTextViaBot: failed to resolve @" + BOT_USERNAME);
                 complete(request, null, true);
                 return;
             }
@@ -93,7 +94,7 @@ public class VoiceToTextViaBot {
             messages.add(messageObject);
             sendMessagesHelper.sendMessage(messages, botUser.id, false, false, false, 0, null, -1, 0);
             sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(COMMAND_TEXT, botUser.id));
-            FileLog.d("VoiceToTextViaBot: voice + command sent to @" + BOT_USERNAME + " (id " + botUser.id + ")");
+            Log.i("HellegramVTTB", "VoiceToTextViaBot: voice + command sent to @" + BOT_USERNAME + " (id " + botUser.id + ")");
             // Polling fallback: the MessagesController intercept can miss the reply
             // depending on which update path delivers it; the dialogs cache however
             // ALWAYS ends up holding the newest message of the mira dialog.
@@ -109,7 +110,7 @@ public class VoiceToTextViaBot {
                     ArrayList<MessageObject> cached = MessagesController.getInstance(account).dialogMessage.get(botDialogId);
                     MessageObject top = cached != null && !cached.isEmpty() ? cached.get(0) : null;
                     if (top != null && !top.isOutOwner() && top.getSenderId() == request.botId) {
-                        FileLog.d("VoiceToTextViaBot: poll captured reply id " + top.getId());
+                        Log.i("HellegramVTTB", "VoiceToTextViaBot: poll captured reply id " + top.getId());
                         AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
                         consumeRouterMessage(top);
                         return;
@@ -228,7 +229,7 @@ public class VoiceToTextViaBot {
             return false;
         }
         AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
-        FileLog.d("VoiceToTextViaBot: reply consumed from sender " + messageObject.getSenderId() + " for voice " + request.voiceMessage.getId());
+        Log.i("HellegramVTTB", "VoiceToTextViaBot: reply consumed from sender " + messageObject.getSenderId() + " for voice " + request.voiceMessage.getId());
         String text = messageObject.messageOwner.message;
         if (TextUtils.isEmpty(text)) {
             request.callback.onResult(null, false, true);
@@ -241,7 +242,7 @@ public class VoiceToTextViaBot {
                 result = result.substring(1).trim();
             }
         }
-        FileLog.d("VoiceToTextViaBot: transcription received (" + result.length() + " chars)");
+        Log.i("HellegramVTTB", "VoiceToTextViaBot: transcription received (" + result.length() + " chars)");
         request.callback.onResult(result, true, false);
         return true;
     }
