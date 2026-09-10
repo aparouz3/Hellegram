@@ -70,6 +70,12 @@ jobs:
         sudo rm -rf /usr/local/lib/android/sdk/skins /usr/local/lib/android/sdk/.temp 2>/dev/null || true
         sudo rm -rf /usr/local/lib/android/sdk/platforms/android-* 2>/dev/null || true  # keep only the one we need
         sudo rm -rf /usr/local/share/powershell /opt/microsoft /opt/MySQL 2>/dev/null || true
+        sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/node /opt/hostedtoolcache/Python 2>/dev/null || true
+        sudo rm -rf /usr/local/lib/android/sdk/ndk/* /usr/local/lib/android/sdk/cmake/* 2>/dev/null || true
+        sudo rm -rf /usr/local/lib/android/sdk/build-tools/34.0.0 /usr/local/lib/android/sdk/build-tools/33.0.* 2>/dev/null || true
+        sudo rm -rf /usr/share/swift /usr/share/miniconda /usr/share/rust /opt/az 2>/dev/null || true
+        # 2b. The 12.10.x NDK object files are much larger; trim intermediate artifacts
+        sudo rm -rf /home/runner/work/Hellegram/Hellegram/TMessagesProj/build/intermediates/cxx/Debug/*/obj/x86 /home/runner/work/Hellegram/Hellegram/TMessagesProj/build/intermediates/cxx/Debug/*/obj/x86_64 2>/dev/null || true || true
         # 3. Clear apt cache
         sudo apt-get clean -y 2>/dev/null || true
         sudo apt-get autoremove -y 2>/dev/null || true
