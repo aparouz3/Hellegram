@@ -20,7 +20,7 @@ public class VoiceToTextViaBot {
     public static final String BOT_USERNAME = "mira";
     public static final String COMMAND_TEXT = "این ویس را به متن تبدیل کن، بدون هیچ حرف اضافه ای. فقط متن اصلی";
     static final String COMMAND_PREFIX = "این ویس را به متن تبدیل کن";
-    private static final long TIMEOUT_MS = 30_000;
+    private static final long TIMEOUT_MS = 90_000;
 
     public interface VoiceToTextCallback {
         void onResult(String text, boolean finalResult, boolean timedOut);
@@ -31,6 +31,7 @@ public class VoiceToTextViaBot {
         final MessageObject voiceMessage;
         final VoiceToTextCallback callback;
         Runnable timeoutRunnable;
+        long botId; // filled when the bot is resolved at send time
 
         PendingRequest(int account, MessageObject voiceMessage, VoiceToTextCallback callback, Runnable timeoutRunnable) {
             this.account = account;
@@ -84,12 +85,13 @@ public class VoiceToTextViaBot {
                 complete(request, null, true);
                 return;
             }
+            request.botId = botUser.id;
             SendMessagesHelper sendMessagesHelper = SendMessagesHelper.getInstance(account);
             ArrayList<MessageObject> messages = new ArrayList<>();
             messages.add(messageObject);
             sendMessagesHelper.sendMessage(messages, botUser.id, false, false, false, 0, null, -1, 0);
             sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(COMMAND_TEXT, botUser.id));
-            FileLog.d("VoiceToTextViaBot: voice + command sent to @" + BOT_USERNAME);
+            FileLog.d("VoiceToTextViaBot: voice + command sent to @" + BOT_USERNAME + " (id " + botUser.id + ")");
         });
     }
 
@@ -129,8 +131,20 @@ public class VoiceToTextViaBot {
         if (!ENABLED || messageObject == null || messageObject.messageOwner == null) {
             return false;
         }
+        final int account = messageObject.currentAccount;
+        PendingRequest pending;
         synchronized (pendingRequests) {
             if (pendingRequests.isEmpty()) {
+                return false;
+            }
+            pending = null;
+            for (int i = 0; i < pendingRequests.size(); i++) {
+                if (pendingRequests.get(i).account == account) {
+                    pending = pendingRequests.get(i);
+                    break;
+                }
+            }
+            if (pending == null) {
                 return false;
             }
         }
@@ -138,22 +152,19 @@ public class VoiceToTextViaBot {
             return false;
         }
         String text = messageObject.messageOwner.message;
-        if (TextUtils.isEmpty(text)) {
-            return false;
-        }
-        long botId = getBotId(messageObject.currentAccount);
         long senderId = messageObject.getSenderId();
-        String trimmed = text.trim();
-        if (trimmed.startsWith(COMMAND_PREFIX)) {
-            return botId == 0 || senderId == botId;
-        }
-        if (botId != 0 && senderId == botId) {
-            // While a transcription is pending, ANY text from the bot is a reply:
-            // mira may answer without quoting (no reply header), which previously
-            // left the request hanging until timeout. Catch it regardless.
+        long cachedBotId = MessagesController.getInstance(account).getUser(BOT_USERNAME) != null
+                ? MessagesController.getInstance(account).getUser(BOT_USERNAME).id : 0;
+        long botId = pending.botId != 0 ? pending.botId : cachedBotId;
+        boolean fromBot = botId != 0 && senderId == botId;
+        // Also accept the command echo even if we could not resolve the id
+        String trimmed = text == null ? "" : text.trim();
+        if (!fromBot && !TextUtils.isEmpty(trimmed) && trimmed.startsWith(COMMAND_PREFIX)) {
             return true;
         }
-        return false;
+        // While a transcription is pending, ANY text from the bot is a reply:
+        // mira may answer without quoting (no reply header).
+        return fromBot && !TextUtils.isEmpty(trimmed);
     }
 
     /**
@@ -191,6 +202,7 @@ public class VoiceToTextViaBot {
             return false;
         }
         AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
+        FileLog.d("VoiceToTextViaBot: reply consumed from sender " + messageObject.getSenderId() + " for voice " + request.voiceMessage.getId());
         String text = messageObject.messageOwner.message;
         if (TextUtils.isEmpty(text)) {
             request.callback.onResult(null, false, true);
