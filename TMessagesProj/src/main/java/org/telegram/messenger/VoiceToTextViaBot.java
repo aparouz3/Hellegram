@@ -31,7 +31,9 @@ public class VoiceToTextViaBot {
         final MessageObject voiceMessage;
         final VoiceToTextCallback callback;
         Runnable timeoutRunnable;
+        Runnable pollRunnable;
         long botId; // filled when the bot is resolved at send time
+        boolean completed;
 
         PendingRequest(int account, MessageObject voiceMessage, VoiceToTextCallback callback, Runnable timeoutRunnable) {
             this.account = account;
@@ -92,6 +94,30 @@ public class VoiceToTextViaBot {
             sendMessagesHelper.sendMessage(messages, botUser.id, false, false, false, 0, null, -1, 0);
             sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(COMMAND_TEXT, botUser.id));
             FileLog.d("VoiceToTextViaBot: voice + command sent to @" + BOT_USERNAME + " (id " + botUser.id + ")");
+            // Polling fallback: the MessagesController intercept can miss the reply
+            // depending on which update path delivers it; the dialogs cache however
+            // ALWAYS ends up holding the newest message of the mira dialog.
+            final long botDialogId = botUser.id;
+            request.pollRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (pendingRequests) {
+                        if (!pendingRequests.contains(request)) {
+                            return;
+                        }
+                    }
+                    ArrayList<MessageObject> cached = MessagesController.getInstance(account).dialogMessage.get(botDialogId);
+                    MessageObject top = cached != null && !cached.isEmpty() ? cached.get(0) : null;
+                    if (top != null && !top.isOutOwner() && top.getSenderId() == request.botId) {
+                        FileLog.d("VoiceToTextViaBot: poll captured reply id " + top.getId());
+                        AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
+                        consumeRouterMessage(top);
+                        return;
+                    }
+                    AndroidUtilities.runOnUIThread(this, 1500);
+                }
+            };
+            AndroidUtilities.runOnUIThread(request.pollRunnable, 2500);
         });
     }
 
@@ -235,9 +261,14 @@ public class VoiceToTextViaBot {
 
     private static void complete(PendingRequest request, String text, boolean timedOut) {
         synchronized (pendingRequests) {
+            if (request.completed) {
+                return;
+            }
+            request.completed = true;
             pendingRequests.remove(request);
         }
         AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
+        AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
         request.callback.onResult(text, !timedOut && text != null, timedOut);
     }
 }
