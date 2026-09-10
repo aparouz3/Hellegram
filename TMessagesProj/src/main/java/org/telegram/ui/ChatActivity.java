@@ -1293,8 +1293,8 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_VIEW_STATISTICS = 115;
     public final static int OPTION_WELCOME_REVERT = 116;
 
-    public final static int OPTION_MUTE_SENDER = 116;
-    public final static int OPTION_UNMUTE_SENDER = 117;
+    public final static int OPTION_MUTE_SENDER = 118;
+    public final static int OPTION_UNMUTE_SENDER = 119;
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             NotificationCenter.messagesRead,
@@ -33734,7 +33734,7 @@ public class ChatActivity extends BaseFragment implements
                     SenderMuteController.setMuted(dialog_id, senderId, true);
                     TLRPC.User user = getMessagesController().getUser(senderId);
                     String name = user != null ? UserObject.getFirstName(user) : "";
-                    BulletinFactory.createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderMutedBulletin, name)).show();
+                    BulletinFactory.of(ChatActivity.this).createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderMutedBulletin, name)).show();
                 }
                 break;
             }
@@ -33744,7 +33744,7 @@ public class ChatActivity extends BaseFragment implements
                     SenderMuteController.setMuted(dialog_id, senderId, false);
                     TLRPC.User user = getMessagesController().getUser(senderId);
                     String name = user != null ? UserObject.getFirstName(user) : "";
-                    BulletinFactory.createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderUnmutedBulletin, name)).show();
+                    BulletinFactory.of(ChatActivity.this).createSimpleBulletin(R.raw.contact_check, LocaleController.formatString(R.string.SenderUnmutedBulletin, name)).show();
                 }
                 break;
             }

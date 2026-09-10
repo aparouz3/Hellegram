@@ -30,7 +30,7 @@ public class VoiceToTextViaBot {
         final int account;
         final MessageObject voiceMessage;
         final VoiceToTextCallback callback;
-        final Runnable timeoutRunnable;
+        Runnable timeoutRunnable;
 
         PendingRequest(int account, MessageObject voiceMessage, VoiceToTextCallback callback, Runnable timeoutRunnable) {
             this.account = account;
