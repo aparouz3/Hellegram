@@ -148,8 +148,10 @@ public class VoiceToTextViaBot {
             return botId == 0 || senderId == botId;
         }
         if (botId != 0 && senderId == botId) {
-            TLRPC.MessageReplyHeader replyHeader = messageObject.messageOwner.reply_to;
-            return replyHeader != null && replyHeader.reply_to_msg_id != 0;
+            // While a transcription is pending, ANY text from the bot is a reply:
+            // mira may answer without quoting (no reply header), which previously
+            // left the request hanging until timeout. Catch it regardless.
+            return true;
         }
         return false;
     }
@@ -163,10 +165,25 @@ public class VoiceToTextViaBot {
     public static boolean consumeRouterMessage(MessageObject messageObject) {
         PendingRequest request = null;
         synchronized (pendingRequests) {
-            for (int i = 0; i < pendingRequests.size(); i++) {
-                if (pendingRequests.get(i).account == messageObject.currentAccount) {
-                    request = pendingRequests.remove(i);
-                    break;
+            // Prefer the request whose voice message this reply quotes (reply_to_msg_id
+            // equals the forwarded voice id in the bot chat); fall back to oldest.
+            TLRPC.MessageReplyHeader replyHeader = messageObject.messageOwner.reply_to;
+            long repliedId = replyHeader != null ? replyHeader.reply_to_msg_id : 0;
+            if (repliedId != 0) {
+                for (int i = 0; i < pendingRequests.size(); i++) {
+                    PendingRequest r = pendingRequests.get(i);
+                    if (r.account == messageObject.currentAccount && r.voiceMessage != null && r.voiceMessage.getId() == repliedId) {
+                        request = pendingRequests.remove(i);
+                        break;
+                    }
+                }
+            }
+            if (request == null) {
+                for (int i = 0; i < pendingRequests.size(); i++) {
+                    if (pendingRequests.get(i).account == messageObject.currentAccount) {
+                        request = pendingRequests.remove(i);
+                        break;
+                    }
                 }
             }
         }
