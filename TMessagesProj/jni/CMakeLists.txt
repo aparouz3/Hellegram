@@ -146,6 +146,23 @@ target_include_directories(breakpad PUBLIC
 #voip
 include(${CMAKE_HOME_DIRECTORY}/voip/CMakeLists.txt)
 
+#world (Hellegram voice-change — restored after 12.10.1 merge)
+add_library(world STATIC
+        third_party/world/harvest.cpp
+        third_party/world/fft.cpp
+        third_party/world/stonemask.cpp
+        third_party/world/synthesis.cpp
+        third_party/world/synthesisrealtime.cpp
+        third_party/world/matlabfunctions.cpp
+        third_party/world/d4c.cpp
+        third_party/world/dio.cpp
+        third_party/world/cheaptrick.cpp
+        third_party/world/codec.cpp
+        third_party/world/common.cpp)
+set_target_properties(world PROPERTIES ANDROID_ARM_MODE arm)
+target_include_directories(world PUBLIC
+        third_party/world)
+
 set(NATIVE_LIB "tmessages.49")
 
 #tmessages
