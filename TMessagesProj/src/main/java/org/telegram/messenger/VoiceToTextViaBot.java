@@ -334,8 +334,8 @@ public class VoiceToTextViaBot {
                     if (request.completed) {
                         return;
                     }
-                    long typingAge = SystemClock.elapsedRealtime() - request.lastTypingTimeMs;
-                    if (request.lastTypingTimeMs != 0 && typingAge < TYPING_ACTIVE_MS) {
+                    long recheckAge = SystemClock.elapsedRealtime() - request.lastTypingTimeMs;
+                    if (request.lastTypingTimeMs != 0 && recheckAge < TYPING_ACTIVE_MS) {
                         // typing resumed since scheduling: wait again
                         scheduleSettleDelivery(request);
                         return;
