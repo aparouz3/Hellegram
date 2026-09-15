@@ -1,5 +1,6 @@
 package org.telegram.messenger;
 
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -14,6 +15,11 @@ import java.util.ArrayList;
  * together with a command text; the bot's reply text is captured and shown
  * in the regular transcription slot of the original voice message.
  * Router replies are consumed silently and never reach the UI or notifications.
+ *
+ * Delivery rule: mira streams the transcription by editing one message while
+ * its typing indicator is active. We keep capturing the latest text and only
+ * deliver it once the typing indicator stops (plus a short settle window), so
+ * the user never sees a half-finished transcription.
  */
 public class VoiceToTextViaBot {
 
@@ -21,7 +27,11 @@ public class VoiceToTextViaBot {
     public static final String BOT_USERNAME = "mira";
     public static final String COMMAND_TEXT = "این ویس را به متن تبدیل کن، بدون هیچ حرف اضافه ای. فقط متن اصلی";
     static final String COMMAND_PREFIX = "این ویس را به متن تبدیل کن";
-    private static final long TIMEOUT_MS = 90_000;
+    private static final long TIMEOUT_MS = 120_000;
+    // Hellegram: settle windows used to deliver the last captured text.
+    private static final long SETTLE_NO_TYPING_MS = 2500;   // text seen, no typing event at all
+    private static final long TYPING_ACTIVE_MS = 6000;      // Telegram typing expires ~5s after last event
+    private static final long SETTLE_TYPING_END_MS = 700;   // deliver shortly after typing goes stale
 
     public interface VoiceToTextCallback {
         void onResult(String text, boolean finalResult, boolean timedOut);
@@ -33,14 +43,18 @@ public class VoiceToTextViaBot {
         final VoiceToTextCallback callback;
         Runnable timeoutRunnable;
         Runnable pollRunnable;
+        Runnable deliverRunnable;
         long botId; // filled when the bot is resolved at send time
         boolean completed;
+        // Hellegram: latest bot reply text seen; delivery waits for typing to end.
+        String latestText;
+        // last time we saw a typing ping from the bot (elapsedRealtime ms; 0 = never)
+        long lastTypingTimeMs;
 
-        PendingRequest(int account, MessageObject voiceMessage, VoiceToTextCallback callback, Runnable timeoutRunnable) {
+        PendingRequest(int account, MessageObject voiceMessage, VoiceToTextCallback callback) {
             this.account = account;
             this.voiceMessage = voiceMessage;
             this.callback = callback;
-            this.timeoutRunnable = timeoutRunnable;
         }
     }
 
@@ -71,8 +85,8 @@ public class VoiceToTextViaBot {
             return;
         }
         final int account = messageObject.currentAccount;
-        final PendingRequest request = new PendingRequest(account, messageObject, callback, null);
-        request.timeoutRunnable = () -> complete(request, null, true);
+        final PendingRequest request = new PendingRequest(account, messageObject, callback);
+        request.timeoutRunnable = () -> complete(request, request.latestText, true);
         synchronized (pendingRequests) {
             pendingRequests.add(request);
         }
@@ -103,17 +117,17 @@ public class VoiceToTextViaBot {
                 @Override
                 public void run() {
                     synchronized (pendingRequests) {
-                        if (!pendingRequests.contains(request)) {
+                        if (!pendingRequests.contains(request) || request.completed) {
                             return;
                         }
                     }
                     ArrayList<MessageObject> cached = MessagesController.getInstance(account).dialogMessage.get(botDialogId);
                     MessageObject top = cached != null && !cached.isEmpty() ? cached.get(0) : null;
                     if (top != null && !top.isOutOwner() && top.getSenderId() == request.botId) {
-                        Log.i("HellegramVTTB", "VoiceToTextViaBot: poll captured reply id " + top.getId());
-                        AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
+                        // Hellegram: only capture the text; delivery still waits
+                        // for the typing/settle logic so a partial chunk is never
+                        // treated as final.
                         consumeRouterMessage(top);
-                        return;
                     }
                     AndroidUtilities.runOnUIThread(this, 1500);
                 }
@@ -159,92 +173,184 @@ public class VoiceToTextViaBot {
             return false;
         }
         final int account = messageObject.currentAccount;
-        PendingRequest pending;
+        long botId = getBotId(account);
         synchronized (pendingRequests) {
             if (pendingRequests.isEmpty()) {
                 return false;
             }
-            pending = null;
             for (int i = 0; i < pendingRequests.size(); i++) {
-                if (pendingRequests.get(i).account == account) {
-                    pending = pendingRequests.get(i);
+                PendingRequest r = pendingRequests.get(i);
+                if (r.account == account && r.botId != 0) {
+                    botId = r.botId;
                     break;
                 }
             }
-            if (pending == null) {
-                return false;
-            }
         }
-        if (messageObject.isOutOwner() || !messageObject.isFromUser()) {
+        if (botId == 0 || messageObject.isOutOwner() || messageObject.getSenderId() != botId) {
             return false;
         }
-        String text = messageObject.messageOwner.message;
-        long senderId = messageObject.getSenderId();
-        long cachedBotId = MessagesController.getInstance(account).getUser(BOT_USERNAME) != null
-                ? MessagesController.getInstance(account).getUser(BOT_USERNAME).id : 0;
-        long botId = pending.botId != 0 ? pending.botId : cachedBotId;
-        boolean fromBot = botId != 0 && senderId == botId;
-        // Also accept the command echo even if we could not resolve the id
-        String trimmed = text == null ? "" : text.trim();
-        if (!fromBot && !TextUtils.isEmpty(trimmed) && trimmed.startsWith(COMMAND_PREFIX)) {
-            return true;
-        }
-        // While a transcription is pending, ANY text from the bot is a reply:
-        // mira may answer without quoting (no reply header).
-        return fromBot && !TextUtils.isEmpty(trimmed);
-    }
-
-    /**
-     * Deliver a router reply to the oldest pending request on this account.
-     * Called from MessagesController.updateInterfaceWithMessages (UI thread).
-     *
-     * @return true if the message was consumed and must not reach the UI
-     */
-    public static boolean consumeRouterMessage(MessageObject messageObject) {
-        PendingRequest request = null;
-        synchronized (pendingRequests) {
-            // Prefer the request whose voice message this reply quotes (reply_to_msg_id
-            // equals the forwarded voice id in the bot chat); fall back to oldest.
-            TLRPC.MessageReplyHeader replyHeader = messageObject.messageOwner.reply_to;
-            long repliedId = replyHeader != null ? replyHeader.reply_to_msg_id : 0;
-            if (repliedId != 0) {
-                for (int i = 0; i < pendingRequests.size(); i++) {
-                    PendingRequest r = pendingRequests.get(i);
-                    if (r.account == messageObject.currentAccount && r.voiceMessage != null && r.voiceMessage.getId() == repliedId) {
-                        request = pendingRequests.remove(i);
-                        break;
-                    }
-                }
-            }
-            if (request == null) {
-                for (int i = 0; i < pendingRequests.size(); i++) {
-                    if (pendingRequests.get(i).account == messageObject.currentAccount) {
-                        request = pendingRequests.remove(i);
-                        break;
-                    }
-                }
-            }
-        }
-        if (request == null) {
-            return false;
-        }
-        AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
-        Log.i("HellegramVTTB", "VoiceToTextViaBot: reply consumed from sender " + messageObject.getSenderId() + " for voice " + request.voiceMessage.getId());
         String text = messageObject.messageOwner.message;
         if (TextUtils.isEmpty(text)) {
-            request.callback.onResult(null, false, true);
-            return true;
+            return false;
         }
-        String result = text.trim();
+        // any non-outgoing text message from the bot while a request is pending
+        // is treated as the transcription reply
+        return true;
+    }
+
+    private static String extractRouterText(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String result = raw.trim();
         if (result.startsWith(COMMAND_PREFIX)) {
             result = result.substring(COMMAND_PREFIX.length()).trim();
             while (!result.isEmpty() && (result.charAt(0) == '،' || result.charAt(0) == ',' || result.charAt(0) == ':' || result.charAt(0) == '-' || result.charAt(0) == '–')) {
                 result = result.substring(1).trim();
             }
         }
-        Log.i("HellegramVTTB", "VoiceToTextViaBot: transcription received (" + result.length() + " chars)");
-        request.callback.onResult(result, true, false);
+        return result;
+    }
+
+    /**
+     * Called from MessagesController.updateInterfaceWithMessages when a router
+     * reply is intercepted. Captures the latest text and (re)schedules delivery.
+     *
+     * @return true if the message was consumed and must not reach the UI
+     */
+    public static boolean consumeRouterMessage(MessageObject messageObject) {
+        final PendingRequest request;
+        final String text;
+        synchronized (pendingRequests) {
+            if (!ENABLED || messageObject == null || messageObject.messageOwner == null || pendingRequests.isEmpty()) {
+                return false;
+            }
+            request = findRequestFor(messageObject.currentAccount, messageObject);
+            if (request == null || request.completed) {
+                return false;
+            }
+            text = isRouterMessage(messageObject) ? extractRouterText(messageObject.messageOwner.message) : null;
+            if (text == null) {
+                return false;
+            }
+            boolean unchanged = text.equals(request.latestText);
+            if (!unchanged) {
+                request.latestText = text;
+            } else if (request.deliverRunnable != null) {
+                // polling fallback re-capturing the same text: keep the already
+                // scheduled settle, otherwise the timer would reset forever
+                return true;
+            }
+        }
+        if (text == null) {
+            return false;
+        }
+        Log.i("HellegramVTTB", "VoiceToTextViaBot: chunk captured (" + text.length() + " chars), waiting for typing to end");
+        scheduleSettleDelivery(request);
         return true;
+    }
+
+    /**
+     * Hellegram: called from the typing-update handling in MessagesController.
+     * typing=true for any non-cancel action from the bot, false for
+     * TL_sendMessageCancelAction (explicit end of typing).
+     * Only acts when an active request targets that bot.
+     */
+    public static void onRouterTyping(int account, long userId, boolean typing) {
+        if (!ENABLED || userId == 0) {
+            return;
+        }
+        PendingRequest request = null;
+        synchronized (pendingRequests) {
+            for (int i = 0; i < pendingRequests.size(); i++) {
+                PendingRequest r = pendingRequests.get(i);
+                if (r.account == account && !r.completed && r.botId == userId) {
+                    request = r;
+                    break;
+                }
+            }
+            if (request == null) {
+                return;
+            }
+            if (typing) {
+                request.lastTypingTimeMs = SystemClock.elapsedRealtime();
+                return;
+            }
+            // explicit cancel: the bot is done typing
+            request.lastTypingTimeMs = 0;
+        }
+        scheduleSettleDelivery(request, SETTLE_TYPING_END_MS);
+    }
+
+    private static PendingRequest findRequestFor(int account, MessageObject messageObject) {
+        // Prefer the request whose voice message this reply quotes; fall back
+        // to the oldest pending request of the same account.
+        TLRPC.MessageReplyHeader replyHeader = messageObject.messageOwner.reply_to;
+        long repliedId = replyHeader != null ? replyHeader.reply_to_msg_id : 0;
+        if (repliedId != 0) {
+            for (int i = 0; i < pendingRequests.size(); i++) {
+                PendingRequest r = pendingRequests.get(i);
+                if (r.account == account && r.voiceMessage != null && r.voiceMessage.getId() == repliedId) {
+                    return r;
+                }
+            }
+        }
+        for (int i = 0; i < pendingRequests.size(); i++) {
+            PendingRequest r = pendingRequests.get(i);
+            if (r.account == account && !r.completed) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    private static void scheduleSettleDelivery(PendingRequest request) {
+        scheduleSettleDelivery(request, 0);
+    }
+
+    private static void scheduleSettleDelivery(PendingRequest request, long minDelay) {
+        long delay;
+        Runnable prev;
+        synchronized (pendingRequests) {
+            if (request.completed) {
+                return;
+            }
+            long typingAge = SystemClock.elapsedRealtime() - request.lastTypingTimeMs;
+            boolean typingFresh = request.lastTypingTimeMs != 0 && typingAge < TYPING_ACTIVE_MS;
+            if (typingFresh) {
+                // still typing: check again after the typing window expires
+                delay = TYPING_ACTIVE_MS - typingAge + SETTLE_TYPING_END_MS;
+            } else if (request.lastTypingTimeMs != 0 || minDelay > 0) {
+                delay = SETTLE_TYPING_END_MS;
+            } else {
+                delay = SETTLE_NO_TYPING_MS;
+            }
+            if (minDelay > delay) {
+                delay = minDelay;
+            }
+            prev = request.deliverRunnable;
+            request.deliverRunnable = () -> {
+                synchronized (pendingRequests) {
+                    if (request.completed) {
+                        return;
+                    }
+                    long typingAge = SystemClock.elapsedRealtime() - request.lastTypingTimeMs;
+                    if (request.lastTypingTimeMs != 0 && typingAge < TYPING_ACTIVE_MS) {
+                        // typing resumed since scheduling: wait again
+                        scheduleSettleDelivery(request);
+                        return;
+                    }
+                    if (request.latestText == null) {
+                        return; // nothing captured yet; hard timeout will fire
+                    }
+                }
+                complete(request, request.latestText, false);
+            };
+        }
+        if (prev != null) {
+            AndroidUtilities.cancelRunOnUIThread(prev);
+        }
+        AndroidUtilities.runOnUIThread(request.deliverRunnable, delay);
     }
 
     public static void cancelPending(MessageObject voiceMessage) {
@@ -254,6 +360,8 @@ public class VoiceToTextViaBot {
                 if (request.voiceMessage == voiceMessage) {
                     pendingRequests.remove(i);
                     AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
+                    AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
+                    AndroidUtilities.cancelRunOnUIThread(request.deliverRunnable);
                     break;
                 }
             }
@@ -270,6 +378,8 @@ public class VoiceToTextViaBot {
         }
         AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
         AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
+        AndroidUtilities.cancelRunOnUIThread(request.deliverRunnable);
+        Log.i("HellegramVTTB", "VoiceToTextViaBot: delivering " + (text == null ? 0 : text.length()) + " chars (timedOut=" + timedOut + ")");
         request.callback.onResult(text, !timedOut && text != null, timedOut);
     }
 }

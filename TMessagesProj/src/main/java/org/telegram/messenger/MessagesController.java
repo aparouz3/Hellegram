@@ -18929,6 +18929,12 @@ public class MessagesController extends BaseController implements NotificationCe
                 if (uid == 0) {
                     uid = userId;
                 }
+                // Hellegram: feed mira typing state to the voice-to-text router
+                // so transcription delivery waits until typing finishes.
+                if (VoiceToTextViaBot.hasPending()) {
+                    boolean cancelAction = action instanceof TLRPC.TL_sendMessageCancelAction;
+                    VoiceToTextViaBot.onRouterTyping(currentAccount, userId, !cancelAction);
+                }
                 if (action instanceof TLRPC.TL_sendMessageTextDraftAction) {
                     AndroidUtilities.runOnUIThread(() -> BotForumHelper.getInstance(currentAccount)
                         .onBotForumDraftUpdate(userId, threadId, (TLRPC.TL_sendMessageTextDraftAction) action));
