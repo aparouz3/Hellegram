@@ -358,6 +358,7 @@ public class VoiceToTextViaBot {
             for (int i = 0; i < pendingRequests.size(); i++) {
                 PendingRequest request = pendingRequests.get(i);
                 if (request.voiceMessage == voiceMessage) {
+                    request.completed = true;
                     pendingRequests.remove(i);
                     AndroidUtilities.cancelRunOnUIThread(request.timeoutRunnable);
                     AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
@@ -380,6 +381,6 @@ public class VoiceToTextViaBot {
         AndroidUtilities.cancelRunOnUIThread(request.pollRunnable);
         AndroidUtilities.cancelRunOnUIThread(request.deliverRunnable);
         Log.i("HellegramVTTB", "VoiceToTextViaBot: delivering " + (text == null ? 0 : text.length()) + " chars (timedOut=" + timedOut + ")");
-        request.callback.onResult(text, !timedOut && text != null, timedOut);
+        AndroidUtilities.runOnUIThread(() -> request.callback.onResult(text, text != null, timedOut));
     }
 }

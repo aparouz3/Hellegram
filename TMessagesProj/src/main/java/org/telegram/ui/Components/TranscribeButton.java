@@ -261,6 +261,7 @@ public class TranscribeButton {
         if (messageObject == null || messageObject.messageOwner == null || !messageObject.isSent()) {
             return;
         }
+        final int account = messageObject.currentAccount;
         boolean toOpen = !shouldBeOpen;
         if (!toOpen) {
             setOpen(false, true);
@@ -273,18 +274,19 @@ public class TranscribeButton {
         }
         if (!TextUtils.isEmpty(messageObject.messageOwner.voiceTranscription)) {
             messageObject.messageOwner.voiceTranscriptionOpen = true;
-            MessagesStorage.getInstance(parent.currentAccount).updateMessageVoiceTranscriptionOpen(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner);
+            MessagesStorage.getInstance(account).updateMessageVoiceTranscriptionOpen(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner);
             AndroidUtilities.runOnUIThread(() -> {
-                NotificationCenter.getInstance(parent.currentAccount).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, null, (Boolean) true, (Boolean) true);
+                NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, null, (Boolean) true, (Boolean) true);
             });
             setOpen(true, true);
             return;
         }
         setLoading(true, true);
         VoiceToTextViaBot.sendVoiceForTranscription(messageObject, (text, finalResult, timedOut) -> {
-            setLoading(false, true);
+            final boolean sameCell = parent.getMessageObject() == messageObject;
+            if (sameCell) setLoading(false, true);
             if (timedOut && TextUtils.isEmpty(text)) {
-                if (parent.getDelegate() != null) {
+                if (sameCell && parent.getDelegate() != null) {
                     parent.getDelegate().needShowTranscribeBotError();
                 }
                 return;
@@ -293,11 +295,11 @@ public class TranscribeButton {
             messageObject.messageOwner.voiceTranscriptionFinal = true;
             TranscribeButton.openVideoTranscription(messageObject);
             messageObject.messageOwner.voiceTranscriptionOpen = true;
-            MessagesStorage.getInstance(parent.currentAccount).updateMessageVoiceTranscription(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner.voiceTranscription, messageObject.messageOwner);
+            MessagesStorage.getInstance(account).updateMessageVoiceTranscription(messageObject.getDialogId(), messageObject.getId(), messageObject.messageOwner.voiceTranscription, messageObject.messageOwner);
             AndroidUtilities.runOnUIThread(() -> {
-                NotificationCenter.getInstance(parent.currentAccount).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, messageObject.messageOwner.voiceTranscription, (Boolean) true, (Boolean) true);
+                NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.voiceTranscriptionUpdate, messageObject, null, messageObject.messageOwner.voiceTranscription, (Boolean) true, (Boolean) true);
             });
-            setOpen(true, true);
+            if (sameCell) setOpen(true, true);
         });
     }
 

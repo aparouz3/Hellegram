@@ -23362,6 +23362,8 @@ public class ChatActivity extends BaseFragment implements
                 String transcriptionText = null;
                 if (args.length > 1 && args[1] != null) {
                     transcriptionId = (Long) args[1];
+                }
+                if (args.length > 2 && args[2] instanceof String) {
                     transcriptionText = (String) args[2];
                 }
                 final ArrayList<MessageObject> messages;
@@ -23372,9 +23374,9 @@ public class ChatActivity extends BaseFragment implements
                 } else {
                     messages = ChatActivity.this.messages;
                 }
-                if (messages != null && !messages.contains(messageObject) && args.length > 1 && args[1] != null) {
+                if (messages != null && !messages.contains(messageObject) && (messageObject != null || transcriptionId != 0)) {
                     for (int a = 0; a < messages.size(); ++a) {
-                        if (messages.get(a) != null && messages.get(a).messageOwner != null && (messages.get(a).messageOwner.voiceTranscriptionId == transcriptionId || messageObject != null && messageObject.getId() == messages.get(a).getId() && messageObject.getDialogId() == messages.get(a).getDialogId())) {
+                        if (messages.get(a) != null && messages.get(a).messageOwner != null && (transcriptionId != 0 && messages.get(a).messageOwner.voiceTranscriptionId == transcriptionId || messageObject != null && messageObject.getId() == messages.get(a).getId() && messageObject.getDialogId() == messages.get(a).getDialogId())) {
                             messageObject = messages.get(a);
                             break;
                         }
@@ -23391,7 +23393,7 @@ public class ChatActivity extends BaseFragment implements
                         messageObject.messageOwner.voiceTranscriptionFinal = (Boolean) args[4];
                     }
 
-                    int index = messages.indexOf(messageObject);
+                    int index = messages == null ? -1 : messages.indexOf(messageObject);
                     if (index >= 0 && index < messages.size()) {
                         int position = index + chatAdapter.messagesStartRow;
                         chatAdapter.updateRowAtPosition(position);
@@ -23427,7 +23429,7 @@ public class ChatActivity extends BaseFragment implements
                     } else {
                         messages = ChatActivity.this.messages;
                     }
-                    int index = messages.indexOf(messageObject);
+                    int index = messages == null ? -1 : messages.indexOf(messageObject);
                     if (index >= 0 && index < messages.size()) {
                         int position = index + chatAdapter.messagesStartRow;
                         chatAdapter.updateRowAtPosition(position);
