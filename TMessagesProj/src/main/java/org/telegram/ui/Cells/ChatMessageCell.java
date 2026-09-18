@@ -12062,7 +12062,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 flagSecure = new FlagSecureReason(window, () ->
                     currentMessageObject != null && currentMessageObject.messageOwner != null && (
                         currentMessageObject.type == MessageObject.TYPE_PAID_MEDIA && (groupMedia == null || !groupMedia.hidden) ||
-                        currentMessageObject.messageOwner.noforwards && !currentMessageObject.isEphemeral() ||
+                        // Hellegram: noforwards messages no longer secure the window.
                         currentMessageObject.isVoiceOnce() ||
                         currentMessageObject.hasRevealedExtendedMedia()
                     )
