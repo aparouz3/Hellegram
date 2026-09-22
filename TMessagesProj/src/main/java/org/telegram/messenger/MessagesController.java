@@ -21638,7 +21638,7 @@ public class MessagesController extends BaseController implements NotificationCe
         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, UPDATE_MASK_REACTIONS_READ);
     }
 
-    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
+    public SponsoredMessagesInfo getSponsoredMessages_(long dialogId) {
         SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);
         if (info != null && (info.loading || Math.abs(SystemClock.elapsedRealtime() - info.loadTime) <= 5 * 60 * 1000)) {
             return info;
@@ -21734,6 +21734,15 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             });
         });
+        return null;
+    }
+
+    // Hellegram: sponsored (ads) messages fully disabled — return nothing and
+    // never fetch from the server, for every dialog (channels and bots alike).
+    // The rendering callers (ChatActivity.addSponsoredMessages + the ad-info view)
+    // already handle a null result, so no ads are ever shown. The original
+    // implementation lives on as getSponsoredMessages_ (unused).
+    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
         return null;
     }
 
