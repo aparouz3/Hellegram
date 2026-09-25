@@ -9766,6 +9766,29 @@ public class MessagesController extends BaseController implements NotificationCe
         return result;
     }
 
+    // === HELLGRAM: "Chats joined" counter (for Screen Time menu) ===
+    // Counts dialogs from the local DB: [0]=total groups+channels, [1]=basic/mega groups, [2]=channels.
+    public int[] getJoinedChatsCounts() {
+        int total = 0, groups = 0, channels = 0;
+        try {
+            SQLiteCursor cursor = getMessagesStorage().getDatabase().queryFinalized(
+                    "SELECT did, flags FROM dialogs WHERE did < 0");
+            while (cursor.next()) {
+                total++;
+                if ((cursor.intValue(1) & 1) != 0) {
+                    channels++;
+                } else {
+                    groups++;
+                }
+            }
+            cursor.dispose();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return new int[]{total, groups, channels};
+    }
+    // === HELLGRAM END ===
+
 
 
 

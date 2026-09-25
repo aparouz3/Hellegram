@@ -63,6 +63,7 @@ public class ScreenTimeActivity extends BaseFragment {
 
     private long[] hourlyTotal;
     private long[] boxPlot;
+    private int[] joinedCounts = {0, 0, 0};
 
     @Override
     public View createView(Context context) {
@@ -139,6 +140,24 @@ public class ScreenTimeActivity extends BaseFragment {
         }
         hourlyTotal = tracker.getHourlyDistribution();
         boxPlot = tracker.getHourlyBoxPlot();
+        // === HELLGRAM: count joined chats off the UI thread ===
+        AndroidUtilities.globalQueue.postRunnable(() -> {
+            int[] counts;
+            try {
+                counts = getMessagesController().getJoinedChatsCounts();
+            } catch (Exception e) {
+                counts = null;
+            }
+            if (counts != null) {
+                final int[] finalCounts = counts;
+                AndroidUtilities.runOnUIThread(() -> {
+                    joinedCounts = finalCounts;
+                    if (adapter != null) {
+                        adapter.notifyItemChanged(3);
+                    }
+                });
+            }
+        });
 
         if (adapter != null) {
             adapter.notifyDataSetChanged();
@@ -292,17 +311,19 @@ public class ScreenTimeActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == 0 || position == 1) return 0;   // Today's Total / This Week's Total (tappable)
             if (position == 2) return 10;                     // global timer toggle
-            if (position == 3) return 1;                      // description
-            if (position == 4 || position == 7 || position == 10) return 2;   // chart headers
-            if (position == 5) return 6;                      // time-per-chat bar chart
-            if (position == 8) return 8;                      // hourly distribution
-            if (position == 11) return 9;                     // box plot
-            return 7;                                         // chart descriptions (6, 9, 12)
+            // === HELLGRAM: "Chats joined" row ===
+            if (position == 3) return 11;                     // joined chats counter
+            if (position == 4) return 1;                      // description
+            if (position == 5 || position == 8 || position == 11) return 2;   // chart headers
+            if (position == 6) return 6;                      // time-per-chat bar chart
+            if (position == 9) return 8;                      // hourly distribution
+            if (position == 12) return 9;                     // box plot
+            return 7;                                         // chart descriptions (7, 10, 13)
         }
 
         @Override
         public int getItemCount() {
-            return 13;   // 2 totals + timer toggle + desc + 3 chart groups (header + chart + desc)
+            return 14;   // 2 totals + timer toggle + joined chats + desc + 3 chart groups (header + chart + desc)
         }
 
         @Override
@@ -328,6 +349,7 @@ public class ScreenTimeActivity extends BaseFragment {
                     view = new BoxPlotContainer(context);
                     break;
                 case 10:
+                case 11:
                     view = new TextCell(context, getResourceProvider());
                     break;
                 case 7:
@@ -350,6 +372,12 @@ public class ScreenTimeActivity extends BaseFragment {
             } else if (type == 10) {
                 boolean globalTimer = ScreenTimeTracker.getInstance().isGlobalTimerEnabled();
                 ((TextCell) holder.itemView).setTextAndValue("Show timer in chat list", globalTimer ? "On" : "Off", true);
+            } else if (type == 11) {
+                // === HELLGRAM: show how many chats are joined ===
+                int[] counts = getMessagesController().getJoinedChatsCounts();
+                int total = counts[0];
+                ((TextCell) holder.itemView).setTextAndValue("Chats joined",
+                        total + " (" + counts[1] + " groups, " + counts[2] + " channels)", false);
             } else if (type == 1) {
                 ((TextInfoPrivacyCell) holder.itemView).setText("Tap Today's Total or This Week's Total to see the per-chat breakdown. Tap a chat there to set a daily limit; you'll get a notification when the limit is reached.");
             } else if (type == 2) {
