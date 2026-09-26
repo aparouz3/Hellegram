@@ -141,7 +141,7 @@ public class ScreenTimeActivity extends BaseFragment {
         hourlyTotal = tracker.getHourlyDistribution();
         boxPlot = tracker.getHourlyBoxPlot();
         // === HELLGRAM: count joined chats off the UI thread ===
-        AndroidUtilities.globalQueue.postRunnable(() -> {
+        Utilities.globalQueue.postRunnable(() -> {
             int[] counts;
             try {
                 counts = getMessagesController().getJoinedChatsCounts();
