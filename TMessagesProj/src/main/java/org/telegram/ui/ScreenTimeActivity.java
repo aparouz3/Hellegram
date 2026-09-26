@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.Utilities;
 import org.telegram.messenger.R;
 import org.telegram.messenger.ScreenTimeTracker;
 import org.telegram.messenger.UserObject;
