@@ -12059,14 +12059,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             Activity activity = AndroidUtilities.findActivity(getContext());
             Window window = activity == null ? null : activity.getWindow();
             if (window != null) {
-                flagSecure = new FlagSecureReason(window, () ->
-                    currentMessageObject != null && currentMessageObject.messageOwner != null && (
-                        currentMessageObject.type == MessageObject.TYPE_PAID_MEDIA && (groupMedia == null || !groupMedia.hidden) ||
-                        // Hellegram: noforwards messages no longer secure the window.
-                        currentMessageObject.isVoiceOnce() ||
-                        currentMessageObject.hasRevealedExtendedMedia()
-                    )
-                );
+                // Hellegram: screenshots always allowed on messages (incl. one-time/paid) — no FLAG_SECURE.
+                flagSecure = new FlagSecureReason(window, () -> false);
                 if (attachedToWindow) {
                     flagSecure.attach();
                 }

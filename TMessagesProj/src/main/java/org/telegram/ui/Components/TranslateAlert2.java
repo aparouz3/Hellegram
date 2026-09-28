@@ -1034,13 +1034,9 @@ public class TranslateAlert2 extends BottomSheet implements NotificationCenter.N
         if (textView != null) {
             textView.setTextIsSelectable(!noforwards);
         }
-        if (noforwards) {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-            AndroidUtilities.logFlagSecure();
-        } else {
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-            AndroidUtilities.logFlagSecure();
-        }
+        // Hellegram: screenshots always allowed in the noforwards popup — no FLAG_SECURE.
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        AndroidUtilities.logFlagSecure();
     }
 
     @Override

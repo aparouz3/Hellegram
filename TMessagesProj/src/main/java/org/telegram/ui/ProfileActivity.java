@@ -2524,8 +2524,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             flagSecure = null;
         }
         if (layout != null && layout.getParentActivity() != null) {
-            // Hellegram: protected chats screenshot-able; secret chats stay locked.
-            flagSecure = new FlagSecureReason(layout.getParentActivity().getWindow(), () -> currentEncryptedChat != null);
+            // Hellegram: screenshots always allowed (incl. secret chats) — no FLAG_SECURE.
+            flagSecure = new FlagSecureReason(layout.getParentActivity().getWindow(), () -> false);
         }
     }
 

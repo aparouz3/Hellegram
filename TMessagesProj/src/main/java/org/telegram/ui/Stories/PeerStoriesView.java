@@ -7151,21 +7151,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
         }
 
         public boolean allowScreenshots() {
-            if (uploadingStory != null) {
-                return uploadingStory.entry.allowScreenshots;
-            }
-            if (storyItem != null) {
-                if (storyItem.noforwards) {
-                    return false;
-                }
-                if (storyItem.pinned) {
-                    final long did = storyItem.dialogId;
-                    final TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-did);
-                    if (chat != null && chat.noforwards) {
-                        return false;
-                    }
-                }
-            }
+            // Hellegram: screenshots always allowed on stories — no FLAG_SECURE.
             return true;
         }
     }

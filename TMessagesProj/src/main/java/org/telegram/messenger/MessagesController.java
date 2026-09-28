@@ -1591,8 +1591,8 @@ public class MessagesController extends BaseController implements NotificationCe
         callConnectTimeout = mainPreferences.getInt("callConnectTimeout", 30000);
         callPacketTimeout = mainPreferences.getInt("callPacketTimeout", 10000);
         updateCheckDelay = mainPreferences.getInt("updateCheckDelay", 24 * 60 * 60);
-        maxFolderPinnedDialogsCountDefault = mainPreferences.getInt("maxFolderPinnedDialogsCountDefault", 100);
-        maxFolderPinnedDialogsCountPremium = mainPreferences.getInt("maxFolderPinnedDialogsCountPremium", 100);
+        maxFolderPinnedDialogsCountDefault = mainPreferences.getInt("maxFolderPinnedDialogsCountDefault", 1000000);
+        maxFolderPinnedDialogsCountPremium = mainPreferences.getInt("maxFolderPinnedDialogsCountPremium", 1000000);
         maxMessageLength = mainPreferences.getInt("maxMessageLength", 4096);
         maxCaptionLength = mainPreferences.getInt("maxCaptionLength", 1024);
         mapProvider = mainPreferences.getInt("mapProvider", 0);
@@ -1644,16 +1644,16 @@ public class MessagesController extends BaseController implements NotificationCe
         savedGifsLimitPremium = mainPreferences.getInt("savedGifsLimitPremium", 400);
         stickersFavedLimitDefault = mainPreferences.getInt("stickersFavedLimitDefault", 5);
         stickersFavedLimitPremium = mainPreferences.getInt("stickersFavedLimitPremium", 200);
-        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
-        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
-        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 5);
-        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 5);
+        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 1000000);
+        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 1000000);
+        maxPinnedDialogsCountDefault = mainPreferences.getInt("maxPinnedDialogsCountDefault", 1000000);
+        maxPinnedDialogsCountPremium = mainPreferences.getInt("maxPinnedDialogsCountPremium", 1000000);
         dialogFiltersLimitDefault = mainPreferences.getInt("dialogFiltersLimitDefault", 10);
         dialogFiltersLimitPremium = mainPreferences.getInt("dialogFiltersLimitPremium", 20);
         dialogFiltersChatsLimitDefault = mainPreferences.getInt("dialogFiltersChatsLimitDefault", 100);
         dialogFiltersChatsLimitPremium = mainPreferences.getInt("dialogFiltersChatsLimitPremium", 200);
-        dialogFiltersPinnedLimitDefault = mainPreferences.getInt("dialogFiltersPinnedLimitDefault", 5);
-        dialogFiltersPinnedLimitPremium = mainPreferences.getInt("dialogFiltersPinnedLimitPremium", 10);
+        dialogFiltersPinnedLimitDefault = mainPreferences.getInt("dialogFiltersPinnedLimitDefault", 1000000);
+        dialogFiltersPinnedLimitPremium = mainPreferences.getInt("dialogFiltersPinnedLimitPremium", 1000000);
         publicLinksLimitDefault = mainPreferences.getInt("publicLinksLimitDefault", 10);
         publicLinksLimitPremium = mainPreferences.getInt("publicLinksLimitPremium", 20);
         captionLengthLimitDefault = mainPreferences.getInt("captionLengthLimitDefault", 1024);
@@ -1676,7 +1676,7 @@ public class MessagesController extends BaseController implements NotificationCe
         starsLocked = mainPreferences.getBoolean("starsLocked", true);
         transcribeButtonPressed = mainPreferences.getInt("transcribeButtonPressed", 0);
         forumUpgradeParticipantsMin = mainPreferences.getInt("forumUpgradeParticipantsMin", 200);
-        topicsPinnedLimit = mainPreferences.getInt("topicsPinnedLimit", 3);
+        topicsPinnedLimit = mainPreferences.getInt("topicsPinnedLimit", 1000000);
         telegramAntispamUserId = mainPreferences.getLong("telegramAntispamUserId", -1);
         telegramAntispamGroupSizeMin = mainPreferences.getInt("telegramAntispamGroupSizeMin", 100);
         hiddenMembersGroupSizeMin = mainPreferences.getInt("hiddenMembersGroupSizeMin", 100);
@@ -1761,8 +1761,8 @@ public class MessagesController extends BaseController implements NotificationCe
         boostsChannelLevelMax = mainPreferences.getInt("boostsChannelLevelMax", 100);
         channelRestrictSponsoredLevelMin = mainPreferences.getInt("channelRestrictSponsoredLevelMin", 30);
         channelAutotranslationLevelMin = mainPreferences.getInt("channelAutotranslationLevelMin", 3);
-        savedDialogsPinnedLimitDefault = mainPreferences.getInt("savedDialogsPinnedLimitDefault", 4);
-        savedDialogsPinnedLimitPremium = mainPreferences.getInt("savedDialogsPinnedLimitPremium", 6);
+        savedDialogsPinnedLimitDefault = mainPreferences.getInt("savedDialogsPinnedLimitDefault", 1000000);
+        savedDialogsPinnedLimitPremium = mainPreferences.getInt("savedDialogsPinnedLimitPremium", 1000000);
         storyQualityFull = mainPreferences.getBoolean("storyQualityFull", true);
         savedViewAsChats = mainPreferences.getBoolean("savedViewAsChats", false);
         folderTags = mainPreferences.getBoolean("folderTags", false);
@@ -3508,24 +3508,20 @@ public class MessagesController extends BaseController implements NotificationCe
                     break;
                 }
                 case "pinned_dialogs_count_max_default": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
-                        if (number.value != maxPinnedDialogsCountDefault) {
-                            maxPinnedDialogsCountDefault = (int) number.value;
-                            editor.putInt("maxPinnedDialogsCountDefault", maxPinnedDialogsCountDefault);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (maxPinnedDialogsCountDefault < 1000000) {
+                        maxPinnedDialogsCountDefault = 1000000;
+                        editor.putInt("maxPinnedDialogsCountDefault", maxPinnedDialogsCountDefault);
+                        changed = true;
                     }
                     break;
                 }
                 case "pinned_dialogs_count_max_premium": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
-                        if (number.value != maxPinnedDialogsCountPremium) {
-                            maxPinnedDialogsCountPremium = (int) number.value;
-                            editor.putInt("maxPinnedDialogsCountPremium", maxPinnedDialogsCountPremium);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (maxPinnedDialogsCountPremium < 1000000) {
+                        maxPinnedDialogsCountPremium = 1000000;
+                        editor.putInt("maxPinnedDialogsCountPremium", maxPinnedDialogsCountPremium);
+                        changed = true;
                     }
                     break;
                 }
@@ -3574,24 +3570,20 @@ public class MessagesController extends BaseController implements NotificationCe
                     break;
                 }
                 case "dialog_filters_pinned_limit_default": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
-                        if (number.value != dialogFiltersPinnedLimitDefault) {
-                            dialogFiltersPinnedLimitDefault = (int) number.value;
-                            editor.putInt("dialogFiltersPinnedLimitDefault", dialogFiltersPinnedLimitDefault);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (dialogFiltersPinnedLimitDefault < 1000000) {
+                        dialogFiltersPinnedLimitDefault = 1000000;
+                        editor.putInt("dialogFiltersPinnedLimitDefault", dialogFiltersPinnedLimitDefault);
+                        changed = true;
                     }
                     break;
                 }
                 case "dialog_filters_pinned_limit_premium": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
-                        if (number.value != dialogFiltersPinnedLimitPremium) {
-                            dialogFiltersPinnedLimitPremium = (int) number.value;
-                            editor.putInt("dialogFiltersPinnedLimitPremium", dialogFiltersPinnedLimitPremium);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (dialogFiltersPinnedLimitPremium < 1000000) {
+                        dialogFiltersPinnedLimitPremium = 1000000;
+                        editor.putInt("dialogFiltersPinnedLimitPremium", dialogFiltersPinnedLimitPremium);
+                        changed = true;
                     }
                     break;
                 }
@@ -3750,13 +3742,11 @@ public class MessagesController extends BaseController implements NotificationCe
                     break;
                 }
                 case "topics_pinned_limit": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber number = (TLRPC.TL_jsonNumber) value.value;
-                        if (number.value != topicsPinnedLimit) {
-                            topicsPinnedLimit = (int) number.value;
-                            editor.putInt("topicsPinnedLimit", topicsPinnedLimit);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (topicsPinnedLimit < 1000000) {
+                        topicsPinnedLimit = 1000000;
+                        editor.putInt("topicsPinnedLimit", topicsPinnedLimit);
+                        changed = true;
                     }
                     break;
                 }
@@ -4362,24 +4352,20 @@ public class MessagesController extends BaseController implements NotificationCe
                     break;
                 }
                 case "saved_dialogs_pinned_limit_default": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber num = (TLRPC.TL_jsonNumber) value.value;
-                        if (num.value != savedDialogsPinnedLimitDefault) {
-                            savedDialogsPinnedLimitDefault = (int) num.value;
-                            editor.putInt("savedDialogsPinnedLimitDefault", savedDialogsPinnedLimitDefault);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (savedDialogsPinnedLimitDefault < 1000000) {
+                        savedDialogsPinnedLimitDefault = 1000000;
+                        editor.putInt("savedDialogsPinnedLimitDefault", savedDialogsPinnedLimitDefault);
+                        changed = true;
                     }
                     break;
                 }
                 case "saved_dialogs_pinned_limit_premium": {
-                    if (value.value instanceof TLRPC.TL_jsonNumber) {
-                        TLRPC.TL_jsonNumber num = (TLRPC.TL_jsonNumber) value.value;
-                        if (num.value != savedDialogsPinnedLimitPremium) {
-                            savedDialogsPinnedLimitPremium = (int) num.value;
-                            editor.putInt("savedDialogsPinnedLimitPremium", savedDialogsPinnedLimitPremium);
-                            changed = true;
-                        }
+                    // Hellegram: ignore server pin limit, keep unlimited
+                    if (savedDialogsPinnedLimitPremium < 1000000) {
+                        savedDialogsPinnedLimitPremium = 1000000;
+                        editor.putInt("savedDialogsPinnedLimitPremium", savedDialogsPinnedLimitPremium);
+                        changed = true;
                     }
                     break;
                 }

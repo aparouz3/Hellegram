@@ -436,7 +436,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         getWindow().setBackgroundDrawable(new ActivityWindowEmptyBackgroundDrawable());
         getWindow().setFormat(PixelFormat.OPAQUE);
 
-        flagSecureReason = new FlagSecureReason(getWindow(), () -> SharedConfig.passcodeHash.length() > 0 && !SharedConfig.allowScreenCapture);
+        // Hellegram: screenshots always allowed app-wide — do not lock the window even with a passcode set.
+        flagSecureReason = new FlagSecureReason(getWindow(), () -> false);
         flagSecureReason.attach();
 
         super.onCreate(savedInstanceState);

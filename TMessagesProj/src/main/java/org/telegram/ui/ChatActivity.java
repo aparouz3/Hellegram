@@ -8750,11 +8750,8 @@ public class ChatActivity extends BaseFragment implements
         });
         chatScrollHelper.setAnimationCallback(chatScrollHelperCallback);
 
-        // Hellegram: protected (noforwards) chats stay screenshot-able; only
-        // secret chats keep the FLAG_SECURE lock.
-        flagSecure = new FlagSecureReason(getParentActivity().getWindow(), () ->
-            currentEncryptedChat != null
-        );
+        // Hellegram: screenshots always allowed on chats (incl. secret chats) — no FLAG_SECURE.
+        flagSecure = new FlagSecureReason(getParentActivity().getWindow(), () -> false);
 
         if (oldMessage != null) {
             chatActivityEnterView.setFieldText(oldMessage);
