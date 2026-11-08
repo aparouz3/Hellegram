@@ -10415,7 +10415,7 @@ public class ChatActivity extends BaseFragment implements
         actionMode.setItemVisibility(copy, !isPeerNoForwards() && selectedMessagesCanCopyIds[0].size() + selectedMessagesCanCopyIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(star, selectedMessagesCanStarIds[0].size() + selectedMessagesCanStarIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(delete, cantDeleteMessagesCount == 0 ? View.VISIBLE : View.GONE);
-        actionMode.setItemVisibility(tag_message, getUserConfig().isPremium() ? View.VISIBLE : View.GONE);
+        actionMode.setItemVisibility(tag_message, View.VISIBLE);
         actionMode.setItemVisibility(share, View.GONE);
     }
 
@@ -19402,7 +19402,7 @@ public class ChatActivity extends BaseFragment implements
                 }
 
                 if (tagItem != null) {
-                    tagItem.setVisibility(getUserConfig().isPremium() && (
+                    tagItem.setVisibility(true && (
                         (editItem != null && editItem.getVisibility() == View.VISIBLE ? 1 : 0) +
                         (forwardItem != null && forwardItem.getVisibility() == View.VISIBLE ? 1 : 0) +
                         (saveItem != null && saveItem.getVisibility() == View.VISIBLE ? 1 : 0) +
@@ -32238,15 +32238,7 @@ public class ChatActivity extends BaseFragment implements
                 reactionsLayout = new ReactionsContainerLayout(tags ? ReactionsContainerLayout.TYPE_TAGS : ReactionsContainerLayout.TYPE_DEFAULT, ChatActivity.this, contentView.getContext(), currentAccount, getResourceProvider());
                 reactionsLayout.setBackgroundFactory(scrimBlur3Factory, BlurredBackgroundProviderImpl.messageMenuReactionsBackground(resourceProvider));
                 if (tags) {
-                    reactionsLayout.setHint(getUserConfig().isPremium() ? LocaleController.getString(R.string.SavedTagReactionsHint2) : AndroidUtilities.replaceSingleTag(LocaleController.getString(R.string.SavedTagReactionsPremiumHint), Theme.key_windowBackgroundWhiteBlueText2, 0, () -> {
-                        closeMenu(false);
-                        PremiumFeatureBottomSheet sheet = new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_SAVED_TAGS, true);
-                        sheet.setDimBehind(false);
-                        sheet.setOnHideListener(d -> {
-                            dimBehindView(false);
-                        });
-                        sheet.show();
-                    }));
+                    reactionsLayout.setHint(LocaleController.getString(R.string.SavedTagReactionsHint2));
                 }
                 if (isReactionsAvailable && (!tags || !getMessagesController().premiumFeaturesBlocked())) {
                     int pad = 22;
@@ -32994,7 +32986,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
-        if (getDialogId() == getUserConfig().getClientUserId() && !getUserConfig().isPremium() && primaryMessage.messageOwner != null && (primaryMessage.messageOwner.reactions == null || (primaryMessage.messageOwner.reactions.reactions_as_tags || primaryMessage.messageOwner.reactions.results.isEmpty()))) {
+        if (false && getDialogId() == getUserConfig().getClientUserId() && !getUserConfig().isPremium() && primaryMessage.messageOwner != null && (primaryMessage.messageOwner.reactions == null || (primaryMessage.messageOwner.reactions.reactions_as_tags || primaryMessage.messageOwner.reactions.results.isEmpty()))) {
             new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_SAVED_TAGS, true).show();
             return;
         }
@@ -38980,7 +38972,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
 	private boolean isSupportedTags() {
-		return getUserConfig().getClientUserId() == getDialogId() && !getMessagesController().getSavedMessagesController().unsupported && getUserConfig().isPremium();
+		return getUserConfig().getClientUserId() == getDialogId() && !getMessagesController().getSavedMessagesController().unsupported;
 	}
 
     private ChatMessageCellDelegate chatMessageCellDelegate;
@@ -45369,7 +45361,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         if (messageObject == null) return;
-        if (getUserConfig().getClientUserId() == getDialogId() && messageObject.areTags() && !getUserConfig().isPremium()) {
+        if (false && getUserConfig().getClientUserId() == getDialogId() && messageObject.areTags() && !getUserConfig().isPremium()) {
             if (longpress) return;
             new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_SAVED_TAGS, true).show();
             return;

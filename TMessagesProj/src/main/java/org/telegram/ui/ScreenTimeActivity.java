@@ -121,47 +121,45 @@ public class ScreenTimeActivity extends BaseFragment {
     }
 
     private void refreshData() {
-        ScreenTimeTracker tracker = ScreenTimeTracker.getInstance();
-        data = tracker.getTodayPerChat();
-        // Add "Other" entry to the list (sorted by time)
-        long otherMs = tracker.getOtherTimeToday();
-        if (otherMs > 1000) {
-            data.add(new long[]{OTHER_DIALOG_ID, otherMs});
-            // Re-sort by time descending
-            data.sort((a, b) -> Long.compare(b[1], a[1]));
-        }
-        maxTime = 1;
-        if (data != null) {
-            for (long[] entry : data) {
-                if (entry[1] > maxTime) {
-                    maxTime = entry[1];
-                }
-            }
-        }
-        hourlyTotal = tracker.getHourlyDistribution();
-        boxPlot = tracker.getHourlyBoxPlot();
-        // === HELLGRAM: count joined chats off the UI thread ===
+        // Heavy data loading (prefs iteration, DB queries) must NOT run on the UI thread:
+        // doing so froze the Screen Time page for seconds on open. Load in background,
+        // then post the results back to update the adapter.
+        final ScreenTimeTracker tracker = ScreenTimeTracker.getInstance();
         AndroidUtilities.globalQueue.postRunnable(() -> {
-            int[] counts;
+            List<long[]> loadedData = tracker.getTodayPerChat();
+            long otherMs = tracker.getOtherTimeToday();
+            if (otherMs > 1000) {
+                loadedData.add(new long[]{OTHER_DIALOG_ID, otherMs});
+                loadedData.sort((a, b) -> Long.compare(b[1], a[1]));
+            }
+            long loadedMax = 1;
+            for (long[] entry : loadedData) {
+                if (entry[1] > loadedMax) loadedMax = entry[1];
+            }
+            long[] loadedHourly = tracker.getHourlyDistribution();
+            long[] loadedBox = tracker.getHourlyBoxPlot();
+            int[] loadedCounts = null;
             try {
-                counts = getMessagesController().getJoinedChatsCounts();
-            } catch (Exception e) {
-                counts = null;
-            }
-            if (counts != null) {
-                final int[] finalCounts = counts;
-                AndroidUtilities.runOnUIThread(() -> {
-                    joinedCounts = finalCounts;
-                    if (adapter != null) {
-                        adapter.notifyItemChanged(3);
-                    }
-                });
-            }
-        });
+                loadedCounts = getMessagesController().getJoinedChatsCounts();
+            } catch (Exception ignored) {}
 
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
-        }
+            final List<long[]> finalData = loadedData;
+            final long finalMax = loadedMax;
+            final long[] finalHourly = loadedHourly;
+            final long[] finalBox = loadedBox;
+            final int[] finalCounts = loadedCounts;
+            AndroidUtilities.runOnUIThread(() -> {
+                data = finalData;
+                maxTime = finalMax;
+                hourlyTotal = finalHourly;
+                boxPlot = finalBox;
+                if (finalCounts != null) joinedCounts = finalCounts;
+                if (adapter != null) {
+                    adapter.notifyDataSetChanged();
+                    if (finalCounts != null) adapter.notifyItemChanged(3);
+                }
+            });
+        });
     }
 
     private TLRPC.User getUser(long dialogId) {
@@ -373,11 +371,13 @@ public class ScreenTimeActivity extends BaseFragment {
                 boolean globalTimer = ScreenTimeTracker.getInstance().isGlobalTimerEnabled();
                 ((TextCell) holder.itemView).setTextAndValue("Show timer in chat list", globalTimer ? "On" : "Off", true);
             } else if (type == 11) {
-                // === HELLGRAM: show how many chats are joined ===
-                int[] counts = getMessagesController().getJoinedChatsCounts();
-                int total = counts[0];
+                // === HELLGRAM: show how many chats are joined (cached, loaded off UI thread) ===
+                int[] counts = joinedCounts;
+                int total = (counts != null && counts.length >= 3) ? counts[0] : 0;
+                int groups = (counts != null && counts.length >= 3) ? counts[1] : 0;
+                int channels = (counts != null && counts.length >= 3) ? counts[2] : 0;
                 ((TextCell) holder.itemView).setTextAndValue("Chats joined",
-                        total + " (" + counts[1] + " groups, " + counts[2] + " channels)", false);
+                        total + " (" + groups + " groups, " + channels + " channels)", false);
             } else if (type == 1) {
                 ((TextInfoPrivacyCell) holder.itemView).setText("Tap Today's Total or This Week's Total to see the per-chat breakdown. Tap a chat there to set a daily limit; you'll get a notification when the limit is reached.");
             } else if (type == 2) {

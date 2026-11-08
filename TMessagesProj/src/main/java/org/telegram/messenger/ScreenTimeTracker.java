@@ -577,3 +577,59 @@ public class ScreenTimeTracker {
         otherStartTime = 0;
     }
 }
+
+    // ===== History helpers (per-day access) =====
+
+    public long getTotalForDay(String dayKey) {
+        flushCurrent();
+        flushOther();
+        long total = 0;
+        String prefix = dayKey + "_";
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(prefix) && !key.contains("_hour") && !key.contains("_h") && !key.contains("_msgcount_")) {
+                total += prefs.getLong(key, 0);
+            }
+        }
+        // include "other" already stored under dayKey_other
+        return total;
+    }
+
+    public List<long[]> getPerChatForDay(String dayKey) {
+        flushCurrent();
+        flushOther();
+        String prefix = dayKey + "_";
+        List<long[]> list = new ArrayList<>();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(prefix) && !key.contains("_hour") && !key.contains("_h") && !key.contains("_msgcount_")) {
+                try {
+                    long did = Long.parseLong(key.substring(prefix.length()));
+                    long ms = prefs.getLong(key, 0);
+                    if (ms > 1000) list.add(new long[]{did, ms});
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        list.sort((a, b) -> Long.compare(b[1], a[1]));
+        return list;
+    }
+
+    public long[] getHourlyForDay(String dayKey) {
+        long[] hours = new long[24];
+        for (int h = 0; h < 24; h++) {
+            hours[h] = prefs.getLong(dayKey + "_hour" + h, 0);
+            // fallback: per-chat hour keys aggregate into hourTotalKey; already stored under dayKey_hourH
+        }
+        return hours;
+    }
+
+    public List<String> getDaysWithData() {
+        java.util.Set<String> days = new java.util.TreeSet<>();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.length() >= 8) {
+                String d = key.substring(0, 8);
+                if (d.matches("\d{8}")) days.add(d);
+            }
+        }
+        List<String> out = new ArrayList<>(days);
+        java.util.Collections.sort(out, java.util.Collections.reverseOrder());
+        return out;
+    }

@@ -1180,7 +1180,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
         }
         filterReactions(visibleReactions);
         showExpandableReactions = !hitLimit && (!allReactionsAvailable && visibleReactions.size() > 16 || allReactionsAvailable && !UserConfig.getInstance(currentAccount).isPremium() && MessagesController.getInstance(currentAccount).premiumFeaturesBlocked());
-        if (type == TYPE_TAGS && !UserConfig.getInstance(currentAccount).isPremium()) {
+        if (false && type == TYPE_TAGS && !UserConfig.getInstance(currentAccount).isPremium()) {
             showExpandableReactions = false;
         }
         if (type == TYPE_STICKER_SET_EMOJI) {
@@ -1439,7 +1439,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
         } else {
             for (int i = 0; i < topReactions.size(); i++) {
                 ReactionsLayoutInBubble.VisibleReaction visibleReaction = ReactionsLayoutInBubble.VisibleReaction.fromTL(topReactions.get(i));
-                if (!hashSet.contains(visibleReaction) && (type == TYPE_TAGS || UserConfig.getInstance(currentAccount).isPremium() || visibleReaction.documentId == 0)) {
+                if (!hashSet.contains(visibleReaction) && (type == TYPE_TAGS || true || visibleReaction.documentId == 0)) {
                     hashSet.add(visibleReaction);
                     visibleReactions.add(visibleReaction);
                     added++;
@@ -1450,7 +1450,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
             }
         }
 
-        if (type != TYPE_TAGS || UserConfig.getInstance(currentAccount).isPremium()) {
+        if (type != TYPE_TAGS || true) {
             ArrayList<TLRPC.Reaction> recentReactions = MediaDataController.getInstance(currentAccount).getRecentReactions();
             for (int i = 0; i < recentReactions.size(); i++) {
                 ReactionsLayoutInBubble.VisibleReaction visibleReaction = ReactionsLayoutInBubble.VisibleReaction.fromTL(recentReactions.get(i));
