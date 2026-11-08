@@ -633,3 +633,31 @@ public class ScreenTimeTracker {
         java.util.Collections.sort(out, java.util.Collections.reverseOrder());
         return out;
     }
+
+    // ===== Monthly helpers =====
+
+    public long getMonthTotal() {
+        flushCurrent();
+        flushOther();
+        String monthPrefix = new SimpleDateFormat("yyyyMM", Locale.US).format(new Date()).substring(0, 6);
+        long total = 0;
+        for (String key : prefs.getAll().keySet()) {
+            if (key.length() < 8) continue;
+            if (!key.substring(0, 6).equals(monthPrefix)) continue;
+            if (key.contains("_hour") || key.contains("_h") || key.contains("_msgcount_")) continue;
+            total += prefs.getLong(key, 0);
+        }
+        return total;
+    }
+
+    public java.util.Map<String, Long> getMonthPerDayTotals() {
+        java.util.Map<String, Long> out = new java.util.TreeMap<>();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.length() < 8) continue;
+            String day = key.substring(0, 8);
+            if (!day.matches("\d{8}")) continue;
+            if (key.contains("_hour") || key.contains("_h") || key.contains("_msgcount_")) continue;
+            out.put(day, out.getOrDefault(day, 0L) + prefs.getLong(key, 0));
+        }
+        return out;
+    }
